@@ -62,6 +62,8 @@ This runs BMAD's [headless install](https://docs.bmad-method.org/how-to/install-
 
 Want a different IDE or module set? Run `pnpm bmad:init:interactive` instead.
 
+> ⌨️ **Just hit Enter on any prompts.** BMAD's installer asks a few questions even with `--yes` passed (module-specific config, optional add-ons, etc.). The square-bracketed `[default]` shown next to each is the right answer — pressing Enter accepts it. The template's defaults are tuned for the standard flow.
+
 If GitHub rate-limits the install: `GITHUB_TOKEN=ghp_xxx pnpm bmad:init`.
 
 ### 5. 💬 Start with `/bmad-help`

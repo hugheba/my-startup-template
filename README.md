@@ -22,6 +22,8 @@ The devcontainer auto-installs Node 24, pnpm (via Corepack), Python 3.13, UV, an
 
 > 💻 Prefer local? Run `corepack enable && pnpm install` after cloning. Make sure you're on Node 24 (`.nvmrc` is included for nvm/fnm/Volta).
 
+> 🖥️ **Open a terminal** for the next steps. In Codespaces / VS Code, press `` Ctrl+` `` (backtick) — or open the menu **Terminal → New Terminal**. A terminal panel opens at the bottom of the window, already in the repo root. Type each command below at the `$` prompt and press Enter. The first command (`pnpm rename:project`) will be interactive — answer the questions it asks.
+
 ### 3. 🏷️ Rename the project
 
 ```bash

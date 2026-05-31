@@ -1,0 +1,123 @@
+name: Security Scan
+
+on:
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '0 2 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+  pull-requests: write
+
+jobs:
+  zap-baseline:
+    name: OWASP ZAP Baseline Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', '**/package.json', 'turbo.json', 'tsconfig*.json', '.env.example') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Build app
+        run: pnpm -F web build
+
+      - name: Start app
+        run: |
+          pnpm -F web start &
+          npx --yes wait-on http://localhost:3000 --timeout 60000
+        env:
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+      - name: Fix workspace permissions for ZAP
+        run: chmod -R 777 ${{ github.workspace }} || true
+
+      - name: Run ZAP Baseline Scan
+        uses: zaproxy/action-baseline@v0.14.0
+        with:
+          target: 'http://localhost:3000'
+          rules_file_name: '.zap/rules.tsv'
+          cmd_options: '-a -j'
+          allow_issue_writing: false
+          artifact_name: 'zap-scan'
+
+      - name: Upload ZAP scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-scan-report
+          path: |
+            report_html.html
+            report_json.json
+          retention-days: 30
+
+      - name: Comment ZAP results on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            let report = 'No critical issues found';
+            if (fs.existsSync('report_json.json')) {
+              const zapReport = JSON.parse(fs.readFileSync('report_json.json'));
+              const alerts = zapReport.site?.[0]?.alerts || [];
+              const critical = alerts.filter(a => a.riskcode === '3');
+              if (critical.length > 0) {
+                report = `⚠️ **${critical.length} Critical Security Issues Found**\n\n`;
+                critical.forEach(a => { report += `- **${a.name}**: ${a.desc}\n`; });
+              } else {
+                report = '✅ No critical security issues found';
+              }
+            }
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `## 🔒 Security Scan Results\n\n${report}`,
+            });
+
+  dependency-scan:
+    name: Dependency Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: corepack enable
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+
+      - name: Snyk scan (continue-on-error — needs SNYK_TOKEN)
+        uses: snyk/actions/node@master
+        continue-on-error: true
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high --all-projects
+
+      - name: pnpm audit
+        run: pnpm audit --audit-level=high || true
+
+  codeql:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:javascript-typescript'

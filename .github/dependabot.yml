@@ -1,0 +1,30 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: '/'
+    schedule: { interval: daily }
+    open-pull-requests-limit: 10
+    groups:
+      next:
+        patterns: ['next', 'react', 'react-dom', '@types/react', '@types/react-dom']
+      eslint:
+        patterns: ['eslint*', '@eslint/*', 'typescript-eslint', '@typescript-eslint/*']
+      tailwind:
+        patterns: ['tailwindcss', '@tailwindcss/*', 'tailwind-merge', 'prettier-plugin-tailwindcss']
+      types:
+        patterns: ['@types/*']
+      commit-tooling:
+        patterns: ['husky', 'lint-staged', '@commitlint/*', 'commitlint']
+
+  - package-ecosystem: github-actions
+    directory: '/'
+    schedule: { interval: daily }
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: devcontainers
+    directory: '/'
+    schedule: { interval: weekly }
+
+  - package-ecosystem: pip
+    directory: '/scripts'
+    schedule: { interval: weekly }

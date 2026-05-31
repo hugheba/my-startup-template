@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-vscode:
+    name: VS Code extension lockstep
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: node scripts/verify-vscode-extensions.mjs
+
+  lint-typecheck-build-test:
+    name: Lint + Typecheck + Build + Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 2 }
+
+      - name: Enable Corepack (reads packageManager from package.json)
+        run: corepack enable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Cache Turborepo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', '**/package.json', 'turbo.json', 'tsconfig*.json', '.env.example') }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Format check
+        run: pnpm format:check
+
+      - name: Lint + Typecheck + Build + Test
+        run: pnpm turbo run lint typecheck build test

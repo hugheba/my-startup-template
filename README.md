@@ -16,9 +16,9 @@ On GitHub, click **"Use this template" → "Create a new repository"**. (Don't f
 
 In your new repo on GitHub: **Code → Codespaces → Create codespace on main**.
 
-The devcontainer auto-installs Node 22, pnpm (via Corepack), Python 3.13, UV, and all 14 recommended VS Code extensions (ESLint, Prettier, Tailwind, Ruff, Claude Code, Copilot, ...). First boot takes ~3 minutes.
+The devcontainer auto-installs Node 24, pnpm (via Corepack), Python 3.13, UV, and all 14 recommended VS Code extensions (ESLint, Prettier, Tailwind, Ruff, Claude Code, Copilot, ...). First boot takes ~3 minutes.
 
-> Prefer local? Run `corepack enable && pnpm install` after cloning. Make sure you're on Node 22 (`.nvmrc` is included for nvm/fnm/Volta).
+> Prefer local? Run `corepack enable && pnpm install` after cloning. Make sure you're on Node 24 (`.nvmrc` is included for nvm/fnm/Volta).
 
 ### 3. Rename the project
 
@@ -79,7 +79,7 @@ Once your product takes shape:
 
 | Layer           | Choice                                                                                                       |
 | --------------- | ------------------------------------------------------------------------------------------------------------ |
-| Runtime         | Node 22 LTS                                                                                                  |
+| Runtime         | Node 24 LTS                                                                                                  |
 | Package manager | pnpm 9.15.0 (Corepack)                                                                                       |
 | Monorepo        | Turborepo                                                                                                    |
 | Web app         | Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (new-york)                                                   |

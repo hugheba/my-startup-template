@@ -44,7 +44,7 @@ It will walk you through the brainstorm → PRD → architecture phases.
 
 | Layer           | Choice                                                  |
 | --------------- | ------------------------------------------------------- |
-| Runtime         | Node 22 LTS                                             |
+| Runtime         | Node 24 LTS                                             |
 | Package manager | pnpm 9.15.0 (Corepack — auto-installed)                 |
 | Monorepo        | Turborepo                                               |
 | Framework       | Next.js 16 (App Router, RSC)                            |

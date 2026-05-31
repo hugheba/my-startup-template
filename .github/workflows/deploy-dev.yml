@@ -1,0 +1,62 @@
+name: Deploy to dev
+
+# Fast-forwards `deploy/dev` tracking branch to `main` after every push to main.
+# Vercel and Amplify watch `deploy/dev` and auto-rebuild.
+#
+# When BMAD adds a database, uncomment the migration-apply steps below
+# (and add the relevant secrets to the `dev` GitHub Environment).
+
+on:
+  push:
+    branches: [main]
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: false
+
+jobs:
+  deploy-dev:
+    name: Advance deploy/dev tracking branch
+    runs-on: ubuntu-latest
+    environment:
+      name: dev
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout main with full history
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Fetch deploy/dev for comparison
+        run: |
+          if git ls-remote --exit-code origin deploy/dev > /dev/null; then
+            git fetch origin deploy/dev:refs/remotes/origin/deploy/dev
+          else
+            echo "deploy/dev does not exist yet — will be created on first push."
+          fi
+
+      # When a DB is added, uncomment:
+      # - name: Verify migrations are forward-only
+      #   run: bash scripts/check-migrations-forward-only.sh origin/deploy/dev
+      #
+      # - name: Apply migrations to dev DB
+      #   env:
+      #     DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      #   run: <migration tool> migrate --target dev
+
+      - name: Fast-forward deploy/dev to main
+        # NOT a force push. If deploy/dev has commits not on main, this fails
+        # loudly so a human can investigate (someone pushed directly to it).
+        run: git push origin HEAD:refs/heads/deploy/dev
+
+      - name: Summarize
+        run: |
+          {
+            echo "## Dev deploy summary"
+            echo ""
+            echo "- Commit: \`$(git rev-parse --short HEAD)\` ($(git log -1 --pretty=%s))"
+            echo "- \`deploy/dev\` fast-forwarded — Vercel + Amplify rebuilding"
+          } >> "$GITHUB_STEP_SUMMARY"

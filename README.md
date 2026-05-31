@@ -20,9 +20,18 @@ In your new repo on GitHub: **Code → Codespaces → Create codespace on main**
 
 The devcontainer auto-installs Node 24, pnpm (via Corepack), Python 3.13, UV, and all 14 recommended VS Code extensions (ESLint, Prettier, Tailwind, Ruff, Claude Code, Copilot, ...). First boot takes ~3 minutes.
 
+> ⏳ **What you'll see while it builds:** the bottom-left of the editor shows **"Opening Remote..."** in blue, and the **Explorer** panel on the left shows a chasing progress bar where your files would normally be. **Don't panic and don't close the tab** — GitHub is provisioning a Linux container, cloning your repo into it, running `postCreateCommand` (which installs all deps via pnpm + uv), and connecting VS Code to it. When the bottom-left turns green and your file tree appears, you're ready.
+
 > 💻 Prefer local? Run `corepack enable && pnpm install` after cloning. Make sure you're on Node 24 (`.nvmrc` is included for nvm/fnm/Volta).
 
 > 🖥️ **Open a terminal** for the next steps. In Codespaces / VS Code, press `` Ctrl+` `` (backtick) — or open the menu **Terminal → New Terminal**. A terminal panel opens at the bottom of the window, already in the repo root. Type each command below at the `$` prompt and press Enter. The first command (`pnpm rename:project`) will be interactive — answer the questions it asks.
+
+> 💰 **Stop the codespace when you're not using it — it bills by the minute.** GitHub's free tier gives personal accounts 120 core-hours/month; a 2-core codespace burns through that in ~60 hours of active uptime. **To stop it:**
+>
+> - **From inside Codespaces:** click the green "Codespaces" badge at the bottom-left → **Stop Current Codespace**. Or press `Cmd/Ctrl+Shift+P` and run **Codespaces: Stop Current Codespace**.
+> - **From github.com:** go to [github.com/codespaces](https://github.com/codespaces) → click the `...` menu next to yours → **Stop codespace**.
+>
+> Stopped codespaces preserve your files and unstaged changes — re-opening is fast (~30s, no rebuild). They auto-stop after 30 min of inactivity by default, but stopping explicitly when you walk away saves more.
 
 ### 3. 🏷️ Rename the project
 

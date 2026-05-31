@@ -1,0 +1,136 @@
+name: Promote (stage or prod)
+
+# Manual GitOps promotion: dev → stage → prod.
+#
+# plan: runs immediately, posts what's about to promote to $GITHUB_STEP_SUMMARY.
+# apply: runs in the target GitHub Environment, gated by required reviewers,
+#        re-verifies source SHA hasn't moved, fast-forwards the target tracking branch.
+#
+# Source/target mapping:
+#   target=stage → source=deploy/dev,   target=deploy/stage
+#   target=prod  → source=deploy/stage, target=deploy/prod
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'Environment to promote to'
+        required: true
+        type: choice
+        options: [stage, prod]
+
+concurrency:
+  group: promote-${{ inputs.target }}
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: Plan promotion to ${{ inputs.target }}
+    runs-on: ubuntu-latest
+    outputs:
+      source_branch: ${{ steps.refs.outputs.source_branch }}
+      target_branch: ${{ steps.refs.outputs.target_branch }}
+      source_sha: ${{ steps.refs.outputs.source_sha }}
+      target_sha: ${{ steps.refs.outputs.target_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Resolve source/target refs
+        id: refs
+        run: |
+          case "${{ inputs.target }}" in
+            stage) SRC="deploy/dev";   DST="deploy/stage" ;;
+            prod)  SRC="deploy/stage"; DST="deploy/prod"  ;;
+            *) echo "::error::Unknown target: ${{ inputs.target }}"; exit 1 ;;
+          esac
+          git fetch origin "$SRC:refs/remotes/origin/$SRC" "$DST:refs/remotes/origin/$DST"
+          SRC_SHA=$(git rev-parse "origin/$SRC")
+          DST_SHA=$(git rev-parse "origin/$DST")
+          {
+            echo "source_branch=$SRC"
+            echo "target_branch=$DST"
+            echo "source_sha=$SRC_SHA"
+            echo "target_sha=$DST_SHA"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Verify target is ancestor of source (fast-forward only)
+        run: |
+          if [ "${{ steps.refs.outputs.source_sha }}" = "${{ steps.refs.outputs.target_sha }}" ]; then
+            echo "::warning::Source and target are at the same commit. Nothing to promote."
+            exit 0
+          fi
+          if ! git merge-base --is-ancestor "${{ steps.refs.outputs.target_sha }}" "${{ steps.refs.outputs.source_sha }}"; then
+            echo "::error::Target is not an ancestor of source — cannot fast-forward."
+            exit 1
+          fi
+
+      - name: Compute promotion summary
+        run: |
+          SRC="${{ steps.refs.outputs.source_branch }}"
+          DST="${{ steps.refs.outputs.target_branch }}"
+          COMMITS=$(git log --oneline "origin/$DST..origin/$SRC" || echo "")
+          {
+            echo "## Promotion plan: \`$SRC\` → \`$DST\` (target: **${{ inputs.target }}**)"
+            echo ""
+            echo "- Source tip: \`${{ steps.refs.outputs.source_sha }}\`"
+            echo "- Target tip: \`${{ steps.refs.outputs.target_sha }}\`"
+            echo ""
+            echo "### Commits to promote"
+            if [ -z "$COMMITS" ]; then
+              echo "_No new commits — source and target are at the same tip._"
+            else
+              echo '```'
+              echo "$COMMITS"
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    name: Apply promotion to ${{ inputs.target }}
+    needs: plan
+    runs-on: ubuntu-latest
+    environment:
+      name: ${{ inputs.target }}
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+
+      - name: Fetch source and target branches
+        run: |
+          git fetch origin \
+            "${{ needs.plan.outputs.source_branch }}:refs/remotes/origin/${{ needs.plan.outputs.source_branch }}" \
+            "${{ needs.plan.outputs.target_branch }}:refs/remotes/origin/${{ needs.plan.outputs.target_branch }}"
+
+      - name: Re-verify source SHA hasn't moved since plan
+        run: |
+          CURRENT_SRC_SHA=$(git rev-parse "origin/${{ needs.plan.outputs.source_branch }}")
+          if [ "$CURRENT_SRC_SHA" != "${{ needs.plan.outputs.source_sha }}" ]; then
+            echo "::error::Source branch moved during approval window."
+            echo "::error::  Planned: ${{ needs.plan.outputs.source_sha }}"
+            echo "::error::  Current: $CURRENT_SRC_SHA"
+            exit 1
+          fi
+
+      # When a DB is added, uncomment:
+      # - name: Apply migrations to ${{ inputs.target }} DB
+      #   env:
+      #     DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      #   run: <migration tool> migrate --target ${{ inputs.target }}
+
+      - name: Fast-forward target tracking branch
+        run: |
+          git push origin \
+            "${{ needs.plan.outputs.source_sha }}:refs/heads/${{ needs.plan.outputs.target_branch }}"
+
+      - name: Summarize
+        run: |
+          {
+            echo "## ${{ inputs.target }} promotion complete"
+            echo ""
+            echo "- Promoted: \`${{ needs.plan.outputs.source_branch }}\` → \`${{ needs.plan.outputs.target_branch }}\`"
+            echo "- Commit: \`${{ needs.plan.outputs.source_sha }}\`"
+            echo "- Amplify + Vercel rebuilding"
+          } >> "$GITHUB_STEP_SUMMARY"

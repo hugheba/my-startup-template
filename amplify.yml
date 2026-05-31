@@ -1,0 +1,61 @@
+version: 1
+applications:
+  - appRoot: apps/web
+    frontend:
+      # Run install AND build from the monorepo root. pnpm's `workspace:*`
+      # resolution requires walking every workspace, and AWS docs document
+      # `buildPath: '/'` as the canonical setup for monorepos where the dep
+      # tree lives at the root.
+      buildPath: '/'
+      phases:
+        preBuild:
+          commands:
+            # Pin pnpm to match `packageManager` in root package.json. Bump
+            # by changing PNPM_VERSION here AND `packageManager` in
+            # package.json; refresh `pnpm-lock.yaml` locally with
+            # `pnpm install`.
+            - export PNPM_VERSION="9.15.0"
+            - corepack enable
+            - corepack prepare "pnpm@${PNPM_VERSION}" --activate
+            # `--frozen-lockfile` makes the install deterministic — fails
+            # the build if `pnpm-lock.yaml` would need to change.
+            - pnpm install --frozen-lockfile
+        build:
+          commands:
+            # Build-time env validation runs at module load, so required
+            # env vars must exist at build time. Write Amplify's env vars
+            # to `apps/web/.env.production`, keyed by `.env.example` so
+            # we only emit vars this app actually declares.
+            - KEYS=$(grep -E '^[A-Z_][A-Z0-9_]*=' .env.example | cut -d= -f1 | paste -sd '|' -)
+            - env | grep -E "^(${KEYS})=" >> apps/web/.env.production || true
+            # `pnpm turbo run build --filter=web` runs the `build` task
+            # for the `web` workspace, content-hashing inputs and
+            # short-circuiting to the cached `.next/` output when nothing
+            # relevant changed.
+            - pnpm turbo run build --filter=web
+      artifacts:
+        # baseDirectory is relative to buildPath. With buildPath: '/'
+        # that's an absolute-from-root path to the Next build output.
+        baseDirectory: apps/web/.next
+        files:
+          - '**/*'
+      cache:
+        # Keep cache narrow and under the 5GB Amplify limit. The valuable
+        # caches are:
+        #   1. pnpm's content-addressed store (`node_modules/.pnpm-store/`)
+        #   2. Turbo's content-addressed task cache (`.turbo/cache/`)
+        #   3. Next's incremental build cache (`apps/web/.next/cache/`)
+        paths:
+          - .turbo/cache/**/*
+          - apps/web/.next/cache/**/*
+          - node_modules/.pnpm-store/**/*
+
+# Multi-app extension pattern:
+#
+# To add another app (e.g. apps/admin), copy the block above, change:
+#   - appRoot: apps/admin
+#   - artifacts.baseDirectory: apps/admin/.next
+#   - cache.paths: include apps/admin/.next/cache/**/*
+#   - build command: pnpm turbo run build --filter=admin
+# Then create a new Amplify App in the AWS console with
+# AMPLIFY_MONOREPO_APP_ROOT=apps/admin set as an env var.

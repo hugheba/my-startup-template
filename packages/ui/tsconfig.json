@@ -1,0 +1,4 @@
+{
+  "extends": "@my-startup-template/tsconfig/react-lib.json",
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}

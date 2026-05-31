@@ -1,0 +1,49 @@
+# deps
+node_modules/
+.pnpm-store/
+
+# builds
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# turbo
+.turbo/
+
+# coverage
+coverage/
+
+# env
+.env
+.env.*.local
+!.env.example
+
+# editor
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# vercel
+.vercel/
+
+# python
+scripts/.venv/
+scripts/__pycache__/
+scripts/**/__pycache__/
+scripts/.ruff_cache/
+scripts/.pytest_cache/
+
+# BMAD output (docs/bmad-output/) is intentionally NOT ignored —
+# template users commit BMAD's PRD, architecture, stories, etc. as work product.
+
+# playwright / test outputs
+playwright-report/
+test-results/
+
+# logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

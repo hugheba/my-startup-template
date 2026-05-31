@@ -1,0 +1,14 @@
+node_modules
+.next
+.turbo
+.vercel
+dist
+coverage
+pnpm-lock.yaml
+uv.lock
+*.tsbuildinfo
+.husky
+scripts/.venv
+scripts/__pycache__
+scripts/.ruff_cache
+scripts/.pytest_cache

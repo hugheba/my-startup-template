@@ -12,6 +12,8 @@ Opinionated **Turborepo + Next.js 16 + Tailwind v4 + shadcn/ui** template for fu
 
 On GitHub, click **"Use this template" → "Create a new repository"**. (Don't fork — "Use this template" gives you a clean history without the template's commits.)
 
+> **Recommended: select `Private`** in the visibility selector. Your startup's PRD, architecture decisions, and any future credentials should not be world-readable while you're still figuring things out. You can flip to Public later from Settings → General → Danger Zone. (GitHub doesn't let template authors enforce this — it's your call at creation time.)
+
 ### 2. Open in GitHub Codespaces
 
 In your new repo on GitHub: **Code → Codespaces → Create codespace on main**.

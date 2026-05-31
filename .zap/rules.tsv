@@ -1,0 +1,5 @@
+# ZAP baseline scan rule customizations.
+# Format: ALERT_ID	{IGNORE,WARN,FAIL}	[REGEX]
+# Empty file = use defaults (all rules WARN, none FAIL).
+# Customize by adding lines like:
+#   10049	IGNORE	(known false positive for our deployment)

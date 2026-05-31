@@ -1,5 +1,6 @@
-import reactLib from './react-lib.js';
 import nextPlugin from '@next/eslint-plugin-next';
+
+import reactLib from './react-lib.js';
 
 /** @type {import("eslint").Linter.Config[]} */
 export default [

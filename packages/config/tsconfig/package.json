@@ -2,5 +2,9 @@
   "name": "@my-startup-template/tsconfig",
   "version": "0.0.0",
   "private": true,
-  "files": ["base.json", "nextjs.json", "react-lib.json"]
+  "files": [
+    "base.json",
+    "nextjs.json",
+    "react-lib.json"
+  ]
 }

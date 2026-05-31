@@ -1,5 +1,5 @@
-import type { Config } from 'tailwindcss';
 import preset from '@my-startup-template/tailwind-config';
+import type { Config } from 'tailwindcss';
 
 const config: Config = {
   content: [

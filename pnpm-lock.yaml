@@ -18,8 +18,8 @@ importers:
         specifier: workspace:*
         version: link:packages/config/prettier
       '@secretlint/secretlint-rule-preset-recommend':
-        specifier: ^9.3.0
-        version: 9.3.4
+        specifier: ^13.0.2
+        version: 13.0.2
       eslint:
         specifier: ^9.15.0
         version: 9.39.4(jiti@2.7.0)
@@ -608,9 +608,9 @@ packages:
   '@secretlint/resolver@9.3.4':
     resolution: {integrity: sha512-L1lIrcjzqcspPzZttmOvMmOFDpJTYFyRBONg94TZBWrpv4x0w5G2SYR+K7EE1SbYQAiPxw1amoXT1YRP8cZF2A==}
 
-  '@secretlint/secretlint-rule-preset-recommend@9.3.4':
-    resolution: {integrity: sha512-RvzrLNN2A0B2bYQgRSRjh2dkdaIDuhXjj4SO5bElK1iBtJNiD6VBTxSSY1P3hXYaBeva7MEF+q1PZ3cCL8XYOA==}
-    engines: {node: ^14.13.1 || >=16.0.0}
+  '@secretlint/secretlint-rule-preset-recommend@13.0.2':
+    resolution: {integrity: sha512-D03Kw51qOgffj9zNlJFZUarVmP8zGcCZNi7A14+vZtHskbbBPEsS/f09idb48rrlMSaRMBN29IkqfbmPyL9xtw==}
+    engines: {node: '>=22.0.0'}
 
   '@secretlint/source-creator@9.3.4':
     resolution: {integrity: sha512-I9ZA1gm9HJNaAhZiQdInY9VM04VTAGDV4bappVbEJzMUDnK/LTbYqfQ88RPqgCGCqa6ee8c0/j5Bn7ypweouIw==}
@@ -3097,7 +3097,7 @@ snapshots:
 
   '@secretlint/resolver@9.3.4': {}
 
-  '@secretlint/secretlint-rule-preset-recommend@9.3.4': {}
+  '@secretlint/secretlint-rule-preset-recommend@13.0.2': {}
 
   '@secretlint/source-creator@9.3.4':
     dependencies:

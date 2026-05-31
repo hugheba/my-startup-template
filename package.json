@@ -27,7 +27,7 @@
   "devDependencies": {
     "@commitlint/cli": "^19.5.0",
     "@commitlint/config-conventional": "^19.5.0",
-    "@secretlint/secretlint-rule-preset-recommend": "^9.3.0",
+    "@secretlint/secretlint-rule-preset-recommend": "^13.0.2",
     "@my-startup-template/prettier-config": "workspace:*",
     "eslint": "^9.15.0",
     "husky": "^9.1.6",

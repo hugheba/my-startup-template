@@ -1,0 +1,35 @@
+{
+  "name": "my-startup-template",
+  "build": { "dockerfile": "Dockerfile" },
+  "features": {
+    "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers-extra/features/uv:1": {}
+  },
+  "postCreateCommand": "corepack enable && pnpm install && (cd scripts && uv sync)",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "Next.js dev server", "onAutoForward": "notify" }
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "editorconfig.editorconfig",
+        "usernamehw.errorlens",
+        "yoavbls.pretty-ts-errors",
+        "bradlc.vscode-tailwindcss",
+        "ms-python.python",
+        "charliermarsh.ruff",
+        "redhat.vscode-yaml",
+        "mikestead.dotenv",
+        "vivaxy.vscode-conventional-commits",
+        "anthropic.claude-code",
+        "github.copilot",
+        "github.copilot-chat"
+      ]
+    }
+  },
+  "remoteUser": "node"
+}

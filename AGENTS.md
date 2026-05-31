@@ -114,6 +114,24 @@ uv add --dev <package> # add a dev dep
 - **Commits** must follow conventional-commit format (`feat(scope):`, `fix(scope):`, `chore:`, `docs:`, `ci:`, `build:`). Enforced by commitlint on `commit-msg`.
 - **VS Code extensions** are kept in lockstep between `.vscode/extensions.json` (recommendations) and `.devcontainer/devcontainer.json` (auto-installed in Codespaces). `pnpm verify:vscode` enforces this in CI.
 
+## Secrets management
+
+**Where secrets go:**
+
+| File                     | Status     | Use for                                      |
+| ------------------------ | ---------- | -------------------------------------------- |
+| `.env.example`           | committed  | documenting required vars (NO actual values) |
+| `.env.local`             | gitignored | **local secrets** (API keys, tokens)         |
+| `.env.development.local` | gitignored | local-only `next dev` overrides              |
+| `.env.production`        | gitignored | written by `amplify.yml` at build time       |
+| Vercel/Amplify console   | external   | production + preview secrets                 |
+
+`apps/web/.env.example` is the canonical list of required env vars for the web app. The `amplify.yml` build phase writes whichever of those vars are set in the Amplify environment to `apps/web/.env.production` at build time, so build-time env validation (zod, etc.) works.
+
+**Never** put a secret behind a `NEXT_PUBLIC_*` prefix — those vars are inlined into the client bundle at build time and end up shipped to every browser.
+
+**Pre-commit secret scan:** [secretlint](https://github.com/secretlint/secretlint) runs on every staged file via lint-staged. If you accidentally stage a credential (AWS key, GitHub token, Stripe key, npm token, Slack webhook, etc.), the commit is rejected. To bypass for a confirmed false positive, add a precise pattern to `.secretlintrc.json` `allows` field — do NOT use `--no-verify`.
+
 ## Deployment
 
 The template is wired for both **Vercel** and **AWS Amplify Hosting**. Deployments are tied to _tracking branches_, not `main`:

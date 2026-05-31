@@ -51,5 +51,10 @@
       "secretlint --secretlintignore .gitignore"
     ]
   },
-  "prettier": "@my-startup-template/prettier-config"
+  "prettier": "@my-startup-template/prettier-config",
+  "pnpm": {
+    "overrides": {
+      "postcss@<8.5.10": "^8.5.10"
+    }
+  }
 }

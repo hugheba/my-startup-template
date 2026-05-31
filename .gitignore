@@ -14,8 +14,9 @@ dist/
 # coverage
 coverage/
 
-# env
+# env — see .env.example for which file stores what
 .env
+.env.local
 .env.*.local
 !.env.example
 

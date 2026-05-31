@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(pnpm:*)",
+      "Bash(pnpm dlx:*)",
+      "Bash(npx:*)",
+      "Bash(uv:*)",
+      "Bash(uv run:*)",
+      "Bash(git:*)",
+      "Bash(gh:*)",
+      "Bash(corepack:*)",
+      "Bash(node:*)"
+    ]
+  },
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "shadcn@latest", "mcp"]
+    },
+    "supabase": {
+      "_comment": "Enable when BMAD picks Supabase as the DB. Requires SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref",
+        "${SUPABASE_PROJECT_REF}"
+      ],
+      "env": { "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}" },
+      "disabled": true
+    },
+    "gitnexus": {
+      "_comment": "Local MCP — set GITNEXUS_BIN to your local gitnexus binary path, then remove `disabled`.",
+      "command": "${GITNEXUS_BIN}",
+      "args": ["mcp"],
+      "disabled": true
+    }
+  }
+}

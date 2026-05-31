@@ -18,6 +18,9 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "turbo run clean && rm -rf node_modules .turbo",
+    "bmad:init": "npx bmad-method@latest install --yes --tools claude-code --modules bmm,bmb,cis,tea --set core.output_folder=docs/bmad-output",
+    "bmad:init:interactive": "npx bmad-method@latest install",
+    "verify:vscode": "node scripts/verify-vscode-extensions.mjs",
     "prepare": "husky"
   },
   "devDependencies": {

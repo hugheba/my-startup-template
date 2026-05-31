@@ -1,8 +1,9 @@
-import base from './base.js';
+import jsxA11y from 'eslint-plugin-jsx-a11y';
 import react from 'eslint-plugin-react';
 import reactHooks from 'eslint-plugin-react-hooks';
-import jsxA11y from 'eslint-plugin-jsx-a11y';
 import globals from 'globals';
+
+import base from './base.js';
 
 /** @type {import("eslint").Linter.Config[]} */
 export default [

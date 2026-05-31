@@ -3,7 +3,7 @@
 // list the exact same extensions in the exact same order. Fails CI if they drift.
 
 import { readFile } from 'node:fs/promises';
-import { resolve, dirname } from 'node:path';
+import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));

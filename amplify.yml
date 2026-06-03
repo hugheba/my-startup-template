@@ -10,6 +10,13 @@ applications:
       phases:
         preBuild:
           commands:
+            # The Amplify build image defaults to Node 22, but this repo
+            # pins Node 24 (`engines.node` + `.nvmrc`), so pnpm install
+            # fails with ERR_PNPM_UNSUPPORTED_ENGINE. Select Node 24 (the
+            # version in `.nvmrc`) via the image's bundled nvm first.
+            - nvm install 24
+            - nvm use 24
+            - node -v
             # Pin pnpm to match `packageManager` in root package.json. Bump
             # by changing PNPM_VERSION here AND `packageManager` in
             # package.json; refresh `pnpm-lock.yaml` locally with

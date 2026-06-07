@@ -15,13 +15,13 @@ Treat your codebase as public and untrusted. Any credential that appears in sour
 #### NEVER hardcode these types of values:
 
 Passwords and Authentication:
-
 - Database passwords, user passwords, admin passwords
 - API keys, secret keys, access tokens, refresh tokens
 - Private keys, certificates, signing keys
 - Connection strings containing credentials
 - OAuth client secrets, webhook secrets
 - Any other credentials that could be used to access external services
+
 
 #### Recognition Patterns - Learn to Spot These Formats
 
@@ -36,7 +36,6 @@ Common Secret Formats You Must NEVER Hardcode:
 - Connection Strings: URLs with credentials like `mongodb://user:pass@host`
 
 Warning Signs in Your Code:
-
 - Variable names containing: `password`, `secret`, `key`, `token`, `auth`
 - Long random-looking strings that are not clear what they are
 - Base64 encoded strings near authentication code

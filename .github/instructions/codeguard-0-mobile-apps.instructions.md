@@ -13,7 +13,6 @@ Essential security practices for developing secure mobile applications across iO
 ### Architecture and Design
 
 Implement secure design principles from the start:
-
 - Follow least privilege and defense in depth principles
 - Use standard secure authentication protocols (OAuth2, JWT)
 - Perform all authentication and authorization checks server-side
@@ -24,7 +23,6 @@ Implement secure design principles from the start:
 ### Authentication and Authorization
 
 Never trust the client for security decisions:
-
 - Perform authentication/authorization server-side only
 - Do not store user passwords on device; use revocable access tokens
 - Avoid hardcoding credentials in the mobile app
@@ -38,7 +36,6 @@ Never trust the client for security decisions:
 ### Data Storage and Privacy
 
 Protect sensitive data at rest and in transit:
-
 - Encrypt sensitive data using platform APIs; avoid custom encryption
 - Leverage hardware-based security features (Secure Enclave, Strongbox)
 - Store private data on device's internal storage only
@@ -49,7 +46,6 @@ Protect sensitive data at rest and in transit:
 ### Network Communication
 
 Assume all network communication is insecure:
-
 - Use HTTPS for all network communication
 - Do not override SSL certificate validation for self-signed certificates
 - Use strong, industry standard cipher suites with appropriate key lengths
@@ -61,7 +57,6 @@ Assume all network communication is insecure:
 ### Code Quality and Integrity
 
 Maintain application security throughout development:
-
 - Use static analysis tools to identify vulnerabilities
 - Make security a focal point during code reviews
 - Keep all libraries up to date to patch known vulnerabilities
@@ -76,7 +71,6 @@ Maintain application security throughout development:
 ### Platform-Specific Security
 
 #### Android Security
-
 - Use Android's ProGuard for code obfuscation
 - Avoid storing sensitive data in SharedPreferences
 - Disable backup mode to prevent sensitive data in backups
@@ -84,7 +78,6 @@ Maintain application security throughout development:
 - Implement Google's Play Integrity API for device and app integrity checks
 
 #### iOS Security
-
 - Configure Shortcuts permissions to require device unlock for sensitive actions
 - Set Siri intent `requiresUserAuthentication` to true for sensitive functionality
 - Implement authentication checks on deep link endpoints
@@ -97,7 +90,6 @@ Maintain application security throughout development:
 ### Testing and Monitoring
 
 Validate security controls through comprehensive testing:
-
 - Perform penetration testing including cryptographic vulnerability assessment
 - Leverage automated tests to ensure security features work as expected
 - Ensure security features do not harm usability
@@ -108,7 +100,6 @@ Validate security controls through comprehensive testing:
 ### Input and Output Validation
 
 Prevent injection and execution attacks:
-
 - Validate and sanitize all user input
 - Validate and sanitize output to prevent injection attacks
 - Mask sensitive information on UI fields to prevent shoulder surfing

@@ -11,7 +11,6 @@ rule_id: codeguard-0-framework-and-languages
 Apply secure‑by‑default patterns per platform. Harden configurations, use built‑in protections, and avoid common pitfalls.
 
 ### Django
-
 - Disable DEBUG in production; keep Django and deps updated.
 - Enable `SecurityMiddleware`, clickjacking middleware, MIME sniffing protection.
 - Force HTTPS (`SECURE_SSL_REDIRECT`); configure HSTS; set secure cookie flags (`SESSION_COOKIE_SECURE`, `CSRF_COOKIE_SECURE`).
@@ -21,7 +20,6 @@ Apply secure‑by‑default patterns per platform. Harden configurations, use bu
 - Secrets: generate via `get_random_secret_key`; store in env/secrets manager.
 
 ### Django REST Framework (DRF)
-
 - Set `DEFAULT_AUTHENTICATION_CLASSES` and restrictive `DEFAULT_PERMISSION_CLASSES`; never leave `AllowAny` for protected endpoints.
 - Always call `self.check_object_permissions(request, obj)` for object‑level authz.
 - Serializers: explicit `fields=[...]`; avoid `exclude` and `"__all__"`.
@@ -29,7 +27,6 @@ Apply secure‑by‑default patterns per platform. Harden configurations, use bu
 - Disable unsafe HTTP methods where not needed. Avoid raw SQL; use ORM/parameters.
 
 ### Laravel
-
 - Production: `APP_DEBUG=false`; generate app key; secure file perms.
 - Cookies/sessions: enable encryption middleware; set `http_only`, `same_site`, `secure`, short lifetimes.
 - Mass assignment: use `$request->only()` / `$request->validated()`; avoid `$request->all()`.
@@ -39,7 +36,6 @@ Apply secure‑by‑default patterns per platform. Harden configurations, use bu
 - CSRF: ensure middleware and form tokens enabled.
 
 ### Symfony
-
 - XSS: Twig auto‑escaping; avoid `|raw` unless trusted.
 - CSRF: use `csrf_token()` and `isCsrfTokenValid()` for manual flows; Forms include tokens by default.
 - SQLi: Doctrine parameterized queries; never concatenate inputs.
@@ -49,7 +45,6 @@ Apply secure‑by‑default patterns per platform. Harden configurations, use bu
 - Sessions/security: configure secure cookies and authentication providers/firewalls.
 
 ### Ruby on Rails
-
 - Avoid dangerous functions:
 
 ```ruby
@@ -79,7 +74,6 @@ IO.write("| os command here", "foo")
 - Headers/CORS: set secure defaults; configure `rack-cors` carefully.
 
 ### .NET (ASP.NET Core)
-
 - Keep runtime and NuGet packages updated; enable SCA in CI.
 - Authz: use `[Authorize]` attributes; perform server‑side checks; prevent IDOR.
 - Authn/sessions: ASP.NET Identity; lockouts; cookies `HttpOnly`/`Secure`; short timeouts.
@@ -89,7 +83,6 @@ IO.write("| os command here", "foo")
 - CSRF: anti‑forgery tokens on state‑changing actions; validate on server.
 
 ### Java and JAAS
-
 - SQL/JPA: use `PreparedStatement`/named parameters; never concatenate input.
 - XSS: allow‑list validation; sanitize output with reputable libs; encode for context.
 - Logging: parameterized logging to prevent log injection.
@@ -97,7 +90,6 @@ IO.write("| os command here", "foo")
 - JAAS: configure `LoginModule` stanzas; implement `initialize/login/commit/abort/logout`; avoid exposing credentials; segregate public/private credentials; manage subject principals properly.
 
 ### Node.js
-
 - Limit request sizes; validate and sanitize input; escape output.
 - Avoid `eval`, `child_process.exec` with user input; use `helmet` for headers; `hpp` for parameter pollution.
 - Rate limit auth endpoints; monitor event loop health; handle uncaught exceptions cleanly.
@@ -105,14 +97,12 @@ IO.write("| os command here", "foo")
 - Keep packages updated; run `npm audit`; use security linters and ReDoS testing.
 
 ### PHP Configuration
-
 - Production php.ini: `expose_php=Off`, log errors not display; restrict `allow_url_fopen/include`; set `open_basedir`.
 - Disable dangerous functions; set session cookie flags (`Secure`, `HttpOnly`, `SameSite=Strict`); enable strict session mode.
 - Constrain upload size/number; set resource limits (memory, post size, execution time).
 - Use Snuffleupagus or similar for additional hardening.
 
 ### Implementation Checklist
-
 - Use each framework’s built‑in CSRF/XSS/session protections and secure cookie flags.
 - Parameterize all data access; avoid dangerous OS/exec functions with untrusted input.
 - Enforce HTTPS/HSTS; set secure headers.

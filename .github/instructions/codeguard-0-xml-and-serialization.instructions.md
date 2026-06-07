@@ -11,15 +11,12 @@ rule_id: codeguard-0-xml-and-serialization
 Secure parsing and processing of XML and serialized data; prevent XXE, entity expansion, SSRF, DoS, and unsafe deserialization across platforms.
 
 ### XML Parser Hardening
-
 - Disable DTDs and external entities by default; reject DOCTYPE declarations.
 - Validate strictly against local, trusted XSDs; set explicit limits (size, depth, element counts).
 - Sandbox or block resolver access; no network fetches during parsing; monitor for unexpected DNS activity.
 
 #### Java
-
 General principle:
-
 ```java
 factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
 ```
@@ -57,8 +54,8 @@ String[] featuresToDisable = {
 };
 
 for (String feature : featuresToDisable) {
-    try {
-        dbf.setFeature(feature, false);
+    try {    
+        dbf.setFeature(feature, false); 
     } catch (ParserConfigurationException e) {
         logger.info("ParserConfigurationException was thrown. The feature '" + feature
         + "' is probably not supported by your XML processor.");
@@ -70,14 +67,12 @@ dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
 ```
 
 #### .NET
-
 ```csharp
 var settings = new XmlReaderSettings { DtdProcessing = DtdProcessing.Prohibit, XmlResolver = null };
 var reader = XmlReader.Create(stream, settings);
 ```
 
 #### Python
-
 ```python
 from defusedxml import ElementTree as ET
 ET.parse('file.xml')
@@ -88,11 +83,9 @@ tree = etree.parse('filename.xml', parser)
 ```
 
 ### Secure XSLT/Transformer Usage
-
 - Set `ACCESS_EXTERNAL_DTD` and `ACCESS_EXTERNAL_STYLESHEET` to empty; avoid loading remote resources.
 
 ### Deserialization Safety
-
 - Never deserialize untrusted native objects. Prefer JSON with schema validation.
 - Enforce size/structure limits before parsing. Reject polymorphic types unless strictly allow‑listed.
 - Language specifics:
@@ -103,7 +96,6 @@ tree = etree.parse('filename.xml', parser)
 - Sign and verify serialized payloads where applicable; log and alert on deserialization failures and anomalies.
 
 ### Implementation Checklist
-
 - DTDs off; external entities disabled; strict schema validation; parser limits set.
 - No network access during parsing; resolvers restricted; auditing in place.
 - No unsafe native deserialization; strict allow‑listing and schema validation for supported formats.

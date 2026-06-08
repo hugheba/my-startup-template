@@ -39,8 +39,8 @@ importers:
         specifier: ^4.1.0
         version: 4.3.0(prettier@3.8.3)(typescript@5.9.3)
       prettier-plugin-tailwindcss:
-        specifier: ^0.6.9
-        version: 0.6.14(prettier-plugin-organize-imports@4.3.0(prettier@3.8.3)(typescript@5.9.3))(prettier@3.8.3)
+        specifier: ^0.8.0
+        version: 0.8.0(prettier-plugin-organize-imports@4.3.0(prettier@3.8.3)(typescript@5.9.3))(prettier@3.8.3)
       secretlint:
         specifier: ^9.3.0
         version: 9.3.4
@@ -78,8 +78,8 @@ importers:
         specifier: ^19.2.7
         version: 19.2.7(react@19.2.7)
       tailwind-merge:
-        specifier: ^2.5.4
-        version: 2.6.1
+        specifier: ^3.6.0
+        version: 3.6.0
     devDependencies:
       '@my-startup-template/eslint-config':
         specifier: workspace:*
@@ -2052,9 +2052,9 @@ packages:
       vue-tsc:
         optional: true
 
-  prettier-plugin-tailwindcss@0.6.14:
-    resolution: {integrity: sha512-pi2e/+ZygeIqntN+vC573BcW5Cve8zUB0SSAGxqpB4f96boZF4M3phPVoOFCeypwkpRYdi7+jQ5YJJUwrkGUAg==}
-    engines: {node: '>=14.21.3'}
+  prettier-plugin-tailwindcss@0.8.0:
+    resolution: {integrity: sha512-V8ITGH87yuBDF6JpEZTOVlUz/saAwqb8f3HRgUj8Lh+tGCcrmorhsLpYqzygwFwK0PE2Ib6Mv3M7T/uE2tZV1g==}
+    engines: {node: '>=20.19'}
     peerDependencies:
       '@ianvs/prettier-plugin-sort-imports': '*'
       '@prettier/plugin-hermes': '*'
@@ -2066,14 +2066,12 @@ packages:
       prettier: ^3.0
       prettier-plugin-astro: '*'
       prettier-plugin-css-order: '*'
-      prettier-plugin-import-sort: '*'
       prettier-plugin-jsdoc: '*'
       prettier-plugin-marko: '*'
       prettier-plugin-multiline-arrays: '*'
       prettier-plugin-organize-attributes: '*'
       prettier-plugin-organize-imports: '*'
       prettier-plugin-sort-imports: '*'
-      prettier-plugin-style-order: '*'
       prettier-plugin-svelte: '*'
     peerDependenciesMeta:
       '@ianvs/prettier-plugin-sort-imports':
@@ -2094,8 +2092,6 @@ packages:
         optional: true
       prettier-plugin-css-order:
         optional: true
-      prettier-plugin-import-sort:
-        optional: true
       prettier-plugin-jsdoc:
         optional: true
       prettier-plugin-marko:
@@ -2107,8 +2103,6 @@ packages:
       prettier-plugin-organize-imports:
         optional: true
       prettier-plugin-sort-imports:
-        optional: true
-      prettier-plugin-style-order:
         optional: true
       prettier-plugin-svelte:
         optional: true
@@ -2390,8 +2384,8 @@ packages:
     resolution: {integrity: sha512-9kY+CygyYM6j02t5YFHbNz2FN5QmYGv9zAjVp4lCDjlCw7amdckXlEt/bjMhUIfj4ThGRE4gCUH5+yGnNuPo5A==}
     engines: {node: '>=10.0.0'}
 
-  tailwind-merge@2.6.1:
-    resolution: {integrity: sha512-Oo6tHdpZsGpkKG88HJ8RR1rg/RdnEkQEfMoEk2x1XRI3F1AxeU+ijRXpiVUF4UbLfcxxRGw6TbUINKYdWVsQTQ==}
+  tailwind-merge@3.6.0:
+    resolution: {integrity: sha512-uxL7qAVQriqRQPAyK3pj66VqskWqoZ37PW94jwOTwNfq/z9oyu1V+eqrZqtR2+fCiXdYOZe/Modt8GtvqNzu+w==}
 
   tailwindcss@4.3.0:
     resolution: {integrity: sha512-y6nxMGB1nMW9R6k96e5gdIFzcfL/gTJRNaqGes1YvkLnPVXzWgbqFF2yLC0T8G774n24cx3Pe8XrKoniCOAH+Q==}
@@ -4534,7 +4528,7 @@ snapshots:
       prettier: 3.8.3
       typescript: 5.9.3
 
-  prettier-plugin-tailwindcss@0.6.14(prettier-plugin-organize-imports@4.3.0(prettier@3.8.3)(typescript@5.9.3))(prettier@3.8.3):
+  prettier-plugin-tailwindcss@0.8.0(prettier-plugin-organize-imports@4.3.0(prettier@3.8.3)(typescript@5.9.3))(prettier@3.8.3):
     dependencies:
       prettier: 3.8.3
     optionalDependencies:
@@ -4904,7 +4898,7 @@ snapshots:
       string-width: 4.2.3
       strip-ansi: 6.0.1
 
-  tailwind-merge@2.6.1: {}
+  tailwind-merge@3.6.0: {}
 
   tailwindcss@4.3.0: {}
 

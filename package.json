@@ -32,7 +32,7 @@
     "eslint": "^9.15.0",
     "husky": "^9.1.6",
     "lint-staged": "^17.0.7",
-    "prettier": "^3.3.3",
+    "prettier": "^3.8.4",
     "prettier-plugin-organize-imports": "^4.1.0",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "secretlint": "^9.3.0",

@@ -36,7 +36,7 @@
     "prettier-plugin-organize-imports": "^4.1.0",
     "prettier-plugin-tailwindcss": "^0.6.9",
     "secretlint": "^9.3.0",
-    "turbo": "^2.3.0",
+    "turbo": "^2.9.17",
     "typescript": "^5.6.0"
   },
   "lint-staged": {

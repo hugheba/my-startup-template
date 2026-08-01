@@ -3,23 +3,32 @@ name: Devcontainer image
 # Ported from the reference GitLab `build-devcontainer-image` job.
 #
 # Two modes, one job:
-#   - pull_request touching the devcontainer → BUILD ONLY. Catches a broken
-#     Dockerfile (a superseded apt pin, a rotated release asset, a stale
-#     SHA256) before it merges and breaks every contributor's rebuild.
+#   - pull request → BUILD ONLY. Catches a broken Dockerfile (a superseded apt
+#     pin, a rotated release asset, a stale SHA256) before it merges and breaks
+#     every contributor's rebuild.
 #   - push to main touching the devcontainer → build AND push to GHCR, tagged
 #     with the commit SHA and `latest`.
 #
 # GHCR needs no secrets: GITHUB_TOKEN + `packages: write` is enough, and the
 # package is created on first push. Once it has published once, devcontainer.json
 # can swap `build` for `image: ghcr.io/<owner>/<repo>/devcontainer:latest`.
+#
+# WHY THE pull_request TRIGGER HAS NO `paths:` FILTER
+# ---------------------------------------------------
+# This job is a REQUIRED status check on main. Branch protection waits for a
+# check of a given NAME to report; a workflow filtered by `paths:` simply does
+# not run on unrelated PRs, so the required check never reports and the PR is
+# blocked forever — every check green, nothing to point at. (That exact failure
+# already cost this repo one debugging session, via a renamed job.)
+#
+# So the job always runs and always reports. The expensive part — a ~2.8 GB
+# image build — is gated on an explicit diff against the PR base instead, so an
+# unrelated PR pays a few seconds rather than ~10 minutes. The `push` trigger
+# keeps its `paths:` filter, since publishing genuinely only matters when the
+# devcontainer changed and nothing requires that check.
 
 on:
   pull_request:
-    paths:
-      - '.devcontainer/**'
-      - 'mise.toml'
-      - 'mise.lock'
-      - '.github/workflows/devcontainer.yml'
   push:
     branches: [main]
     paths:
@@ -35,7 +44,11 @@ concurrency:
 
 jobs:
   build:
-    name: Build${{ github.event_name == 'push' && ' + publish' || '' }} devcontainer image
+    # STABLE, literal name. It was previously interpolated
+    # ("Build${{ ... }} devcontainer image"), which renders differently per
+    # event — fine for display, but a required check is matched by name, so an
+    # event-dependent name is a latent version of the same trap described above.
+    name: Build devcontainer image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -43,6 +56,36 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
+        with:
+          # Need the base commit present to diff against it.
+          fetch-depth: 0
+
+      - name: Does this change affect the devcontainer?
+        id: scope
+        # Mirrors the `paths:` list the pull_request trigger used to carry.
+        # BASE/HEAD go through env rather than direct interpolation: they are
+        # SHAs here, but interpolating event data into a shell body is the
+        # pattern that turns into script injection the moment the source
+        # changes. On non-PR events there is nothing to diff, so build.
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "affected=true" >> "$GITHUB_OUTPUT"
+            echo "Not a pull request — building."
+            exit 0
+          fi
+          changed="$(git diff --name-only "$BASE" "$HEAD" -- \
+            '.devcontainer/**' 'mise.toml' 'mise.lock' \
+            '.github/workflows/devcontainer.yml')"
+          if [ -n "$changed" ]; then
+            echo "affected=true" >> "$GITHUB_OUTPUT"
+            echo "Devcontainer inputs changed:"; echo "$changed"
+          else
+            echo "affected=false" >> "$GITHUB_OUTPUT"
+            echo "No devcontainer inputs changed — skipping the image build."
+          fi
 
       - name: Free up runner disk space
         # The image is large (Gortex alone unpacks to ~285 MB of embedded
@@ -50,15 +93,17 @@ jobs:
         # ubuntu-latest runner has ~14 GB free, which this can exhaust mid-build
         # with a confusing "no space left on device". Dropping the preinstalled
         # Android SDK / .NET / GHC trees buys ~20 GB and costs ~30 s.
+        if: steps.scope.outputs.affected == 'true'
         run: |
           sudo rm -rf /usr/local/lib/android /usr/share/dotnet /opt/ghc
           df -h /
 
       - uses: docker/setup-buildx-action@v3
+        if: steps.scope.outputs.affected == 'true'
 
       - name: Log in to GHCR
         # Only when we intend to push — a PR from a fork has a read-only token.
-        if: github.event_name != 'pull_request'
+        if: steps.scope.outputs.affected == 'true' && github.event_name != 'pull_request'
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
@@ -67,6 +112,7 @@ jobs:
 
       - name: Compute image tags
         id: meta
+        if: steps.scope.outputs.affected == 'true'
         # Package names must be lowercase; ${{ github.repository }} preserves
         # the owner's casing, so normalize it.
         run: |
@@ -77,16 +123,17 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
       - name: Build and push
+        if: steps.scope.outputs.affected == 'true'
         uses: docker/build-push-action@v6
         with:
           # Repo root, matching devcontainer.json's `"context": ".."` — the
-          # Dockerfile COPYs mise.toml from the root.
+          # Dockerfile COPYs mise.toml and mise.lock from the root.
           context: .
           file: .devcontainer/Dockerfile
           # linux/amd64 only: that is what GitHub runners and Codespaces use.
-          # Adding linux/arm64 here means QEMU-emulating a ~1 GB image build and
-          # pushes the job past 30 min. Apple-silicon developers build natively
-          # from devcontainer.json instead of pulling.
+          # Adding linux/arm64 here means QEMU-emulating a ~2.8 GB image build
+          # and pushes the job past 30 min. Apple-silicon developers build
+          # natively from devcontainer.json instead of pulling.
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
@@ -98,7 +145,10 @@ jobs:
           {
             echo "## Devcontainer image"
             echo ""
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
+            if [ "${{ steps.scope.outputs.affected }}" != "true" ]; then
+              echo "- No devcontainer inputs changed — image build skipped."
+              echo "- The check still reports so it can gate merges to \`main\`."
+            elif [ "${{ github.event_name }}" = "pull_request" ]; then
               echo "- Build-only (pull request) — image not pushed."
             else
               echo "- Pushed \`${{ steps.meta.outputs.image }}:${{ github.sha }}\`"

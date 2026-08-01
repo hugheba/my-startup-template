@@ -1,0 +1,45 @@
+# The devcontainer build context is the REPO ROOT (devcontainer.json sets
+# "context": "..", and .github/workflows/devcontainer.yml sets `context: .`),
+# because the Dockerfile COPYs mise.toml from there. Without this file Docker
+# would upload the entire working tree — ~1 GB of node_modules alone — on every
+# build and every CI run, for the sake of one small TOML file.
+#
+# The Dockerfile copies mise.toml and nothing else, so this list is deliberately
+# aggressive: anything not needed to build the image is excluded.
+
+# Dependencies and build output
+node_modules
+**/node_modules
+.next
+**/.next
+.turbo
+**/.turbo
+dist
+**/dist
+coverage
+**/coverage
+*.tsbuildinfo
+.vercel
+
+# Python (scripts/)
+**/.venv
+**/__pycache__
+**/.ruff_cache
+**/.pytest_cache
+
+# VCS, local state and secrets — none of it belongs in an image layer or in a
+# build context that gets uploaded to a daemon.
+.git
+.github
+.husky
+.remember
+.claude
+.vscode
+.env
+.env.*
+!.env.example
+
+# BMAD generated output
+_bmad
+_bmad-output
+docs/bmad-output

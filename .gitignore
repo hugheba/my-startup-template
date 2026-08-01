@@ -44,6 +44,11 @@ scripts/.pytest_cache/
 playwright-report/
 test-results/
 
+# local agent scratch state (session buffers, daily notes) — machine-local,
+# never work product. Prettier 3 reads .gitignore as an ignore path, so listing
+# it here also keeps `pnpm format:check` off it.
+.remember/
+
 # logs
 *.log
 npm-debug.log*

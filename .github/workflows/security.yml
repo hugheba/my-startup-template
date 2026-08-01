@@ -18,15 +18,15 @@ jobs:
     name: OWASP ZAP Baseline Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: corepack enable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 24, cache: pnpm }
 
       - run: pnpm install --frozen-lockfile
 
       - name: Cache Turborepo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', '**/package.json', 'turbo.json', 'tsconfig*.json', '.env.example') }}
@@ -94,9 +94,9 @@ jobs:
     name: Dependency Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: corepack enable
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
 
@@ -115,7 +115,7 @@ jobs:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # CodeQL code scanning requires GitHub Advanced Security ("Code Security")
       # to be enabled, which is a paid add-on on private repos and is disabled
       # by default. When disabled, only the upload in `analyze` fails with "Code
@@ -132,3 +132,28 @@ jobs:
         continue-on-error: true
         with:
           category: '/language:javascript-typescript'
+
+  gitleaks:
+    name: Secret scan (gitleaks)
+    runs-on: ubuntu-latest
+    # BLOCKING, unlike the advisory scans above. secretlint already runs on
+    # staged files via lint-staged, but that only sees the diff a developer is
+    # about to commit — it cannot catch a secret introduced in an earlier commit
+    # on the branch, or one added by a tool. gitleaks scans the whole history.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # `gitleaks git` walks commits, not just the worktree — a shallow
+          # clone would silently scan almost nothing and always pass.
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        # Pinned by digest, not tag: a tag is mutable, and this is the job whose
+        # whole purpose is trusting what it runs. Digest resolved for v8.30.1
+        # (2026-03-21). Bump the tag and the digest together.
+        # --redact keeps any finding's secret value out of the run log, which is
+        # readable by anyone with repo access (and world-readable if public).
+        run: |
+          docker run --rm -v "$PWD:/repo" -w /repo \
+            zricethezav/gitleaks:v8.30.1@sha256:c00b6bd0aeb3071cbcb79009cb16a60dd9e0a7c60e2be9ab65d25e6bc8abbb7f \
+            git --no-banner --redact

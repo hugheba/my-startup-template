@@ -1,0 +1,59 @@
+# Single source of truth for this repo's toolchain.
+#
+# mise owns every language and CLI it can resolve, so the dev container's
+# Dockerfile stays thin and a host developer gets the identical toolchain with
+# one `mise install`. The Dockerfile installs mise and runs `mise install`; it
+# no longer hand-rolls curl/tar/sha256sum blocks per tool.
+#
+# INTEGRITY: mise.lock (committed next to this file) pins every tool to an exact
+# release asset URL + SHA256 for every platform, and records SLSA provenance
+# where the publisher signs it. That replaces — and improves on — per-tool
+# `sha256sum -c` in the Dockerfile: it covers all platforms at once and is
+# regenerated mechanically. mise only maintains the lockfile if it EXISTS, so
+# never delete mise.lock; refresh it with `mise install` after a version bump.
+
+[tools]
+# ---- languages -----------------------------------------------------------
+# Exact patch, not "24": with a lockfile present mise installs whatever the lock
+# says, and `mise lock --bump` resolved the fuzzy "24" to 24.16.0 while
+# `mise latest node@24` reports 24.18.1 — pinning here removes that gap so the
+# container never silently lands two patch releases behind. Stay inside major 24
+# to match .nvmrc, package.json `engines.node`, and `node-version` in
+# .github/workflows/*.yml.
+# pnpm is deliberately absent: it is pinned by package.json `packageManager` and
+# materialized by Corepack, so a second pin here could drift.
+node = "24.18.1"
+
+# Kept in lockstep with scripts/.python-version. uv creates scripts/.venv from it.
+python = "3.14"
+
+# GraalVM 21 with native-image. The community build is used rather than
+# `oracle-graalvm-21.0.7` because its license (GPLv2 + Classpath Exception) is
+# unambiguous for a template others will fork; switch the line if you want
+# Oracle's newer patch releases and accept the GFTC terms.
+# native-image ships INSIDE the distribution as of GraalVM 21 — there is no
+# `gu install native-image` step. It links against libz, so the Dockerfile
+# installs zlib1g-dev.
+java = "graalvm-community-21.0.2"
+
+# ---- utilities -----------------------------------------------------------
+uv = "0.12.0"     # python package/venv manager for scripts/
+gh = "2.96.0"     # GitHub CLI (was a devcontainer feature)
+awscli = "2.36.14" # apps/web deploys via AWS Amplify
+
+# ---- agent tooling -------------------------------------------------------
+opencode = "1.18.10" # terminal AI agent, for delegated review passes
+rtk = "0.44.1"       # LLM token-reduction CLI proxy
+
+# Gortex — code-intelligence graph served to agents over MCP. Not in mise's
+# registry, so it comes straight from its GitHub releases; the `github:` backend
+# verifies the SLSA provenance the project publishes. (`ubi:` also works but is
+# deprecated and removed in mise 2027.1.0.)
+"github:zzet/gortex" = "0.61.4"
+
+# NOT HERE: the Claude Code CLI. mise's npm backend installs with
+# --ignore-scripts / --omit=optional, so the package's postinstall never runs
+# and its platform-native binary is never downloaded — `claude` then fails at
+# runtime with "claude native binary not installed". Verified by building this
+# image with it declared here. It is installed with `npm install -g` in the
+# Dockerfile instead, pinned to the same exact version.

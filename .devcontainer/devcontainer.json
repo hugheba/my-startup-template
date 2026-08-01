@@ -1,12 +1,33 @@
 {
   "name": "my-startup-template",
-  "build": { "dockerfile": "Dockerfile" },
+  // Built locally rather than pulled. `.github/workflows/devcontainer.yml`
+  // publishes this same Dockerfile to ghcr.io/<owner>/<repo>/devcontainer on
+  // pushes to main; to trade ~10 min of cold-build time for a pull, swap the
+  // line below for:
+  //   "image": "ghcr.io/<owner>/<repo>/devcontainer:latest"
+  // Do that only AFTER the workflow has published at least once — otherwise a
+  // fresh clone has nothing to pull.
+  "build": { "dockerfile": "Dockerfile", "context": ".." },
+  // The python / github-cli / uv features are GONE — mise.toml owns Python,
+  // uv and the GitHub CLI now (along with Node, GraalVM, the AWS CLI, Gortex,
+  // opencode, rtk and the Claude Code CLI), all checksum-pinned via mise.lock.
+  //
+  // docker-in-docker is the one thing mise cannot provide: it needs a daemon,
+  // systemd wiring and a privileged container, not a versioned binary.
+  // moby:false installs Docker CE from Docker's own apt repo instead of the
+  // Moby packages. The feature declares `privileged: true` itself, so no
+  // runArgs are needed here.
   "features": {
-    "ghcr.io/devcontainers/features/python:1": { "version": "3.13" },
-    "ghcr.io/devcontainers/features/github-cli:1": {},
-    "ghcr.io/devcontainers-extra/features/uv:1": {}
+    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+      "moby": false
+    }
   },
-  "postCreateCommand": "corepack enable && pnpm install && (cd scripts && uv sync)",
+  // `mise trust` first: trust is keyed by config path, and the Dockerfile only
+  // trusted the build-time copy at /workspace — the live repo mounts elsewhere.
+  // `gortex telemetry off` is belt-and-suspenders on top of the image's
+  // GORTEX_TELEMETRY=0, so the on-disk state agrees with the env var; `gortex
+  // track` indexes this workspace so the MCP server has a graph to answer from.
+  "postCreateCommand": "mise trust && corepack enable && pnpm install && (cd scripts && uv sync) && gortex telemetry off && gortex track \"$PWD\"",
   "forwardPorts": [3000],
   "portsAttributes": {
     "3000": { "label": "Next.js dev server", "onAutoForward": "notify" }
@@ -31,5 +52,8 @@
       ]
     }
   },
-  "remoteUser": "node"
+  // ubuntu24.04 base ships `vscode`, not `node` (the old typescript-node base's
+  // user). The Dockerfile installs mise/Node/Claude Code into /home/vscode, so
+  // this must stay in lockstep with the Dockerfile's `USER`.
+  "remoteUser": "vscode"
 }

@@ -15,6 +15,22 @@ updates:
         patterns: ['@types/*']
       commit-tooling:
         patterns: ['husky', 'lint-staged', '@commitlint/*', 'commitlint']
+    ignore:
+      # ESLint 10 removed context.getFilename(), which eslint-plugin-react
+      # still calls — it throws "contextOrFilename.getFilename is not a
+      # function" on any file containing a component. eslint-plugin-import and
+      # eslint-plugin-jsx-a11y also cap their peer range at ^9. All three are
+      # already at their latest release, so there is nothing to upgrade *to*.
+      # Drop this ignore once they ship ESLint 10 support.
+      - dependency-name: 'eslint'
+        update-types: ['version-update:semver-major']
+      - dependency-name: '@eslint/js'
+        update-types: ['version-update:semver-major']
+      # @types/node must track the Node major actually being run (24 — see
+      # engines, mise.toml and the workflows), not npm's latest. A newer major
+      # type-checks against APIs that do not exist at run time.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
 
   - package-ecosystem: github-actions
     directory: '/'

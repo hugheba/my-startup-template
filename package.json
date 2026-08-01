@@ -13,6 +13,8 @@
     "build": "turbo run build",
     "lint": "turbo run lint",
     "lint:fix": "turbo run lint:fix",
+    "lint:md": "markdownlint-cli2",
+    "lint:md:fix": "markdownlint-cli2 --fix",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "format": "prettier --write .",
@@ -21,23 +23,25 @@
     "bmad:init": "npx -y bmad-method@latest install --yes --tools claude-code --modules bmm,bmb,cis,tea --set core.output_folder=docs/bmad-output",
     "bmad:init:interactive": "npx -y bmad-method@latest install",
     "verify:vscode": "node scripts/verify-vscode-extensions.mjs",
+    "verify:deps": "node scripts/verify-exact-deps.mjs",
     "rename:project": "node scripts/rename-template.mjs",
     "prepare": "husky"
   },
   "devDependencies": {
-    "@commitlint/cli": "^21.0.2",
-    "@commitlint/config-conventional": "^21.0.2",
-    "@secretlint/secretlint-rule-preset-recommend": "^9.3.0",
+    "@commitlint/cli": "21.2.1",
+    "@commitlint/config-conventional": "21.2.0",
     "@my-startup-template/prettier-config": "workspace:*",
-    "eslint": "^9.15.0",
-    "husky": "^9.1.6",
-    "lint-staged": "^17.0.7",
-    "prettier": "^3.3.3",
-    "prettier-plugin-organize-imports": "^4.1.0",
-    "prettier-plugin-tailwindcss": "^0.6.9",
-    "secretlint": "^9.3.0",
-    "turbo": "^2.3.0",
-    "typescript": "^5.6.0"
+    "@secretlint/secretlint-rule-preset-recommend": "9.3.4",
+    "eslint": "9.39.4",
+    "husky": "9.1.7",
+    "lint-staged": "17.3.0",
+    "markdownlint-cli2": "0.18.1",
+    "prettier": "3.9.6",
+    "prettier-plugin-organize-imports": "4.3.0",
+    "prettier-plugin-tailwindcss": "0.8.1",
+    "secretlint": "9.3.4",
+    "turbo": "2.10.8",
+    "typescript": "5.9.3"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [
@@ -54,7 +58,7 @@
   "prettier": "@my-startup-template/prettier-config",
   "pnpm": {
     "overrides": {
-      "postcss@<8.5.10": "^8.5.10"
+      "postcss@<8.5.10": "8.5.15"
     }
   }
 }

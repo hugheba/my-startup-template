@@ -18,7 +18,11 @@ On GitHub, click **"Use this template" → "Create a new repository"**. (Don't f
 
 In your new repo on GitHub: **Code → Codespaces → Create codespace on main**.
 
-The devcontainer auto-installs Node 24, pnpm (via Corepack), Python 3.13, UV, and all 14 recommended VS Code extensions (ESLint, Prettier, Tailwind, Ruff, Claude Code, Copilot, ...). First boot takes ~3 minutes.
+The whole toolchain is declared in [`mise.toml`](mise.toml) and installed by [mise](https://mise.jdx.dev): Node 24, Python 3.14, GraalVM CE 21 (with `native-image`), uv, the GitHub CLI, the AWS CLI, plus the agent tooling — [Gortex](https://github.com/zzet/gortex) (code-intelligence graph, indexed automatically on first boot), opencode and rtk. `mise.lock` pins every one to an exact release asset and SHA256 per platform, so two people building the container get byte-identical tools. The Claude Code CLI is installed separately (see [AGENTS.md](AGENTS.md#toolchain-mise) for why).
+
+pnpm comes from Corepack (pinned by `packageManager`), Docker-in-Docker is available inside the container, and all 14 recommended VS Code extensions (ESLint, Prettier, Tailwind, Ruff, Claude Code, Copilot, ...) install automatically.
+
+First boot takes ~10 minutes because that image is built from scratch; later starts take seconds. Pushes to `main` publish the same image to GHCR (`.github/workflows/devcontainer.yml`), so you can swap `build` for `image:` in `.devcontainer/devcontainer.json` and pull it instead.
 
 > ⏳ **What you'll see while it builds:** the bottom-left of the editor shows **"Opening Remote..."** in blue, and the **Explorer** panel on the left shows a chasing progress bar where your files would normally be. **Don't panic and don't close the tab** — GitHub is provisioning a Linux container, cloning your repo into it, running `postCreateCommand` (which installs all deps via pnpm + uv), and connecting VS Code to it. When the bottom-left turns green and your file tree appears, you're ready.
 
@@ -70,7 +74,7 @@ If GitHub rate-limits the install: `GITHUB_TOKEN=ghp_xxx pnpm bmad:init`.
 
 Open the AI chat panel in your IDE (Claude Code in the bottom panel, or GitHub Copilot Chat in the sidebar) and type:
 
-```
+```text
 /bmad-help
 ```
 

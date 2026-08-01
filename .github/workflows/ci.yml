@@ -10,26 +10,45 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # NOTE: this job's `name` is a REQUIRED status check in main's branch
+  # protection, which matches on the check-run name. Renaming it (or folding it
+  # into another job) makes the required check never report, and every PR is
+  # blocked forever with no visible failure. Keep the name as-is unless you
+  # update branch protection in the same change.
   verify-vscode:
     name: VS Code extension lockstep
     runs-on: ubuntu-latest
+    # Dependency-free by design: plain node, no pnpm install, so it fails fast
+    # and cheaply before the heavier job below.
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: { node-version: 24 }
       - run: node scripts/verify-vscode-extensions.mjs
+
+  verify-deps:
+    name: Dependencies pinned to exact versions
+    runs-on: ubuntu-latest
+    # Its own job rather than a step on the one above so it reports a distinct
+    # status check — that job's name is load-bearing for branch protection and
+    # should not accumulate unrelated responsibilities. Also dependency-free.
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with: { node-version: 24 }
+      - run: node scripts/verify-exact-deps.mjs
 
   lint-typecheck-build-test:
     name: Lint + Typecheck + Build + Test
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with: { fetch-depth: 2 }
 
       - name: Enable Corepack (reads packageManager from package.json)
         run: corepack enable
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with:
           node-version: 24
           cache: pnpm
@@ -38,7 +57,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Cache Turborepo
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', '**/package.json', 'turbo.json', 'tsconfig*.json', '.env.example') }}
@@ -47,6 +66,13 @@ jobs:
 
       - name: Format check
         run: pnpm format:check
+
+      # Runs as a step rather than its own job: the deps it needs are already
+      # installed here, so a separate job would pay another ~40 s of pnpm
+      # install for a lint that takes ~2 s. Scope and rule set live in
+      # .markdownlint-cli2.jsonc.
+      - name: Markdown lint
+        run: pnpm lint:md
 
       - name: Lint + Typecheck + Build + Test
         run: pnpm turbo run lint typecheck build test

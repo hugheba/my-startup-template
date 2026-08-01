@@ -38,11 +38,10 @@
       "env": { "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}" },
       "disabled": true
     },
-    "gitnexus": {
-      "_comment": "Local MCP — set GITNEXUS_BIN to your local gitnexus binary path, then remove `disabled`.",
-      "command": "${GITNEXUS_BIN}",
-      "args": ["mcp"],
-      "disabled": true
+    "gortex": {
+      "_comment": "Code-intelligence graph over this repo (replaces CodeGraphContext + GitNexus). Installed by mise (see mise.toml) and resolved through its shim on PATH, then indexed by postCreateCommand; bare `gortex` also resolves for host users who installed it themselves. Enabled by default — it needs no credential and binds no port.",
+      "command": "gortex",
+      "args": ["mcp"]
     }
   }
 }

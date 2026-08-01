@@ -18,7 +18,7 @@
   // Moby packages. The feature declares `privileged: true` itself, so no
   // runArgs are needed here.
   "features": {
-    "ghcr.io/devcontainers/features/docker-in-docker:2": {
+    "ghcr.io/devcontainers/features/docker-in-docker:4": {
       "moby": false
     }
   },

@@ -122,6 +122,8 @@ Where the rule applies today:
 | devcontainer OS packages             | apt version pins in `.devcontainer/Dockerfile`             |
 | the gitleaks scanner image           | image digest (`@sha256:…`), not a tag                      |
 
+`pnpm.overrides` sits in `package.json` because that is where pnpm 9 reads it. **pnpm 10 does not** — it reads `overrides` from `pnpm-workspace.yaml` and ignores the `package.json` block with nothing louder than a warning. Move the block in the same commit that bumps `packageManager` to 10. Doing it afterwards silently reopens every advisory the overrides suppress, and the only signal is a warning that looks like ordinary pnpm noise.
+
 Three deliberate exemptions — these are policy, not oversights, so do not "fix" them:
 
 - **`engines`** (`node`, `pnpm`) stays a range. It declares _compatibility_, not what gets installed — pinning it exactly would reject a contributor on 24.18.0 for no reason. The installed version is pinned by `mise.toml`.

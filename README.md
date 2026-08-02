@@ -18,7 +18,7 @@ On GitHub, click **"Use this template" → "Create a new repository"**. (Don't f
 
 In your new repo on GitHub: **Code → Codespaces → Create codespace on main**.
 
-The whole toolchain is declared in [`mise.toml`](mise.toml) and installed by [mise](https://mise.jdx.dev): Node 24, Python 3.14, GraalVM CE 21 (with `native-image`), uv, the GitHub CLI, the AWS CLI, plus the agent tooling — [Gortex](https://github.com/zzet/gortex) (code-intelligence graph, indexed automatically on first boot), opencode and rtk. `mise.lock` pins every one to an exact release asset and SHA256 per platform, so two people building the container get byte-identical tools. The Claude Code CLI is installed separately (see [AGENTS.md](AGENTS.md#toolchain-mise) for why).
+The whole toolchain is declared in [`mise.toml`](mise.toml) and installed by [mise](https://mise.jdx.dev): Node 24, Python 3.14, GraalVM CE 21 (with `native-image`), uv, the GitHub CLI, the AWS CLI, plus the agent tooling — [Gortex](https://github.com/zzet/gortex) (code-intelligence graph, indexed automatically on first boot), opencode and rtk. Every **version** lives in one file, [`.devcontainer/.env`](.devcontainer/.env), which both Docker Compose and mise read; `mise.lock` then pins each tool to an exact release asset and SHA256 per platform, so two people building the container get byte-identical tools. The Claude Code CLI is installed separately (see [AGENTS.md](AGENTS.md#toolchain-mise) for why).
 
 pnpm comes from Corepack (pinned by `packageManager`), Docker-in-Docker is available inside the container, and all 14 recommended VS Code extensions (ESLint, Prettier, Tailwind, Ruff, Claude Code, Copilot, ...) install automatically.
 
@@ -105,7 +105,7 @@ Once your product takes shape:
 | 🔷 Language        | TypeScript 5.6+ strict                                                                                       |
 | ✨ Linting/format  | ESLint 9 flat config + Prettier 3                                                                            |
 | 🪝 Git hooks       | husky + lint-staged + commitlint (conventional commits)                                                      |
-| 🐍 Python          | 3.13 + UV (in `scripts/`)                                                                                    |
+| 🐍 Python          | 3.14 + UV (in `scripts/`)                                                                                    |
 | 🧪 CI              | Lint, typecheck, build, test, format, OWASP ZAP, Snyk, CodeQL                                                |
 | 🚀 Deploy          | Vercel + AWS Amplify (both wired, both watching `deploy/dev\|stage\|prod` tracking branches)                 |
 | 🤖 Agents          | Claude Code (`.claude/`), GitHub Copilot (`.github/`), Gemini (`GEMINI.md`) — all redirecting to `AGENTS.md` |

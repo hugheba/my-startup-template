@@ -1,13 +1,24 @@
 {
   "name": "my-startup-template",
-  // Built locally rather than pulled. `.github/workflows/devcontainer.yml`
-  // publishes this same Dockerfile to ghcr.io/<owner>/<repo>/devcontainer on
-  // pushes to main; to trade ~10 min of cold-build time for a pull, swap the
-  // line below for:
+  // Built through Compose, not `build:`. That is load-bearing, not stylistic:
+  // Docker Compose auto-loads `.devcontainer/.env` (same directory, that exact
+  // filename) and passes it to the Dockerfile's build ARGs, which is how every
+  // pinned version — base image digest, apt packages, mise, the Claude Code CLI
+  // — reaches the image from one manifest. A plain `build:` block would bypass
+  // the manifest entirely and the Dockerfile's guard would fail the build.
+  // See AGENTS.md, "Toolchain (mise)".
+  //
+  // `.github/workflows/devcontainer.yml` publishes this same image to
+  // ghcr.io/<owner>/<repo>/devcontainer on pushes to main; to trade ~10 min of
+  // cold-build time for a pull, replace the three keys below with:
   //   "image": "ghcr.io/<owner>/<repo>/devcontainer:latest"
   // Do that only AFTER the workflow has published at least once — otherwise a
   // fresh clone has nothing to pull.
-  "build": { "dockerfile": "Dockerfile", "context": ".." },
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "app",
+  // Must match the bind-mount target in docker-compose.yml. Unlike `build:`,
+  // Compose does not infer this.
+  "workspaceFolder": "/workspaces/my-startup-template",
   // The python / github-cli / uv features are GONE — mise.toml owns Python,
   // uv and the GitHub CLI now (along with Node, GraalVM, the AWS CLI, Gortex,
   // opencode, rtk and the Claude Code CLI), all checksum-pinned via mise.lock.

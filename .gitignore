@@ -18,7 +18,17 @@ coverage/
 .env
 .env.local
 .env.*.local
+# amplify.yml writes real environment values here at build time, so it must
+# never be committed. `.env.*.local` above does NOT cover it.
+.env.production
 !.env.example
+# NOT a secret: the devcontainer pin manifest (base image digest, apt and tool
+# versions). It is only named `.env` because Docker Compose auto-loads a file
+# with exactly that name from beside docker-compose.yml — which is what feeds
+# the Dockerfile's build ARGs. The bare `.env` rule above matches at ANY depth,
+# so without this negation the manifest is silently untracked and every fresh
+# clone builds a container with no toolchain.
+!.devcontainer/.env
 
 # editor
 .DS_Store
@@ -53,3 +63,8 @@ test-results/
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Transient working document — cross-repo devcontainer analysis. Local only:
+# it references other organisations' internal repos and standards and must not
+# be published from this public template.
+DEVCONTAINER.md

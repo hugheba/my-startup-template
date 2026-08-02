@@ -1,0 +1,60 @@
+# Compose exists here for ONE structural reason: Docker Compose auto-loads a
+# file named exactly `.env` sitting beside this file, with no --env-file flag
+# and regardless of the working directory it is invoked from. That is what lets
+# `build.args` below reach the Dockerfile's ARGs, which is how every pinned
+# version gets into the image from a single manifest. Building the Dockerfile
+# directly bypasses the manifest, so it fails fast at the Dockerfile's guard.
+#
+# See AGENTS.md, "Toolchain (mise)".
+
+services:
+  app:
+    build:
+      # Repo root: the Dockerfile COPYs mise.toml, mise.lock and
+      # .devcontainer/.env, all of which live above this directory.
+      context: ..
+      dockerfile: .devcontainer/Dockerfile
+      args:
+        # Every one of these is defined in .devcontainer/.env. `${NAME}` with
+        # no default is deliberate — a typo or a missing key yields an empty
+        # value, which the Dockerfile's guard turns into a named build failure
+        # rather than a silently unpinned package.
+        BASE_IMAGE_TAG: ${BASE_IMAGE_TAG}
+        BASE_IMAGE_DIGEST: ${BASE_IMAGE_DIGEST}
+        APT_BUILD_ESSENTIAL_VERSION: ${APT_BUILD_ESSENTIAL_VERSION}
+        APT_ZLIB1G_DEV_VERSION: ${APT_ZLIB1G_DEV_VERSION}
+        APT_UNZIP_VERSION: ${APT_UNZIP_VERSION}
+        APT_ZIP_VERSION: ${APT_ZIP_VERSION}
+        APT_IPUTILS_PING_VERSION: ${APT_IPUTILS_PING_VERSION}
+        APT_DNSUTILS_VERSION: ${APT_DNSUTILS_VERSION}
+        APT_NETCAT_OPENBSD_VERSION: ${APT_NETCAT_OPENBSD_VERSION}
+        APT_TRACEROUTE_VERSION: ${APT_TRACEROUTE_VERSION}
+        MISE_VERSION: ${MISE_VERSION}
+        CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION}
+
+    volumes:
+      # The repo itself. `cached` trades strict host↔container write ordering
+      # for throughput, which matters for node_modules-heavy trees on macOS.
+      - ..:/workspaces/my-startup-template:cached
+      # Named volumes so Claude Code's and Gortex's state survive a rebuild.
+      # The image pre-creates both paths owned by vscode: Docker seeds a new
+      # named volume from the image directory's ownership, and an unseeded
+      # volume mounts root:root, leaving tools running as vscode unable to
+      # write. ~/.gortex is a machine-local sqlite graph + model cache, never
+      # repo content, so it is deliberately not on the bind mount.
+      - claude-config:/home/vscode/.claude
+      - gortex-store:/home/vscode/.gortex
+
+    # Keep the container alive: the devcontainer attaches to it rather than
+    # running an app process. Without this the container exits immediately and
+    # VS Code reports a container that "stopped unexpectedly".
+    command: sleep infinity
+
+    # GORTEX_TELEMETRY is deliberately NOT here — it is `ENV` in the Dockerfile.
+    # A compose value implies per-environment tunability and silently does not
+    # apply to anyone running the image outside this file. Settings that must
+    # not be optional belong in the image.
+
+volumes:
+  claude-config:
+  gortex-store:

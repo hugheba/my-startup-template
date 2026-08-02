@@ -24,6 +24,7 @@
     "bmad:init:interactive": "npx -y bmad-method@latest install",
     "verify:vscode": "node scripts/verify-vscode-extensions.mjs",
     "verify:deps": "node scripts/verify-exact-deps.mjs",
+    "verify:mise": "node scripts/verify-mise-lock.mjs",
     "rename:project": "node scripts/rename-template.mjs",
     "prepare": "husky"
   },

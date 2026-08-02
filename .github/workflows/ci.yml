@@ -26,17 +26,42 @@ jobs:
         with: { node-version: 24 }
       - run: node scripts/verify-vscode-extensions.mjs
 
+  # NOTE: this job's `name` is also a REQUIRED status check — same warning as
+  # above applies.
   verify-deps:
     name: Dependencies pinned to exact versions
     runs-on: ubuntu-latest
     # Its own job rather than a step on the one above so it reports a distinct
     # status check — that job's name is load-bearing for branch protection and
-    # should not accumulate unrelated responsibilities. Also dependency-free.
+    # should not accumulate unrelated responsibilities.
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with: { node-version: 24 }
       - run: node scripts/verify-exact-deps.mjs
+
+      # Toolchain pins live in .devcontainer/.env and are templated into
+      # mise.toml; mise.lock holds the per-platform checksums they are verified
+      # against. Those two can silently desync: bumping a version in .env DOES
+      # take effect (the request wins over a stale lock), but the old lock entry
+      # orphans and that tool's next install has no reviewed hash to check
+      # against — mise records whatever it downloads. That is a fail-OPEN
+      # supply-chain gap, so it is gated here rather than left to discipline.
+      #
+      # This deliberately does NOT run `mise lock` and diff the result. That was
+      # the first implementation and it failed on a lockfile that was correct:
+      # `mise lock` verifies SLSA provenance only for the platform it runs on
+      # and writes `provenance_verified = true` onto that platform's entry
+      # alone, so a lock generated on macos-arm64 differs from CI's linux-x64 by
+      # exactly that one line — and would have failed forever for every
+      # contributor not on the runner's platform. A gate that fails on correct
+      # input is worse than no gate.
+      #
+      # The script checks the invariant instead — every declared tool has a lock
+      # entry at exactly the version the manifest pins, on all four platforms —
+      # which is platform-independent, needs no network, and keeps this job
+      # dependency-free.
+      - run: node scripts/verify-mise-lock.mjs
 
   lint-typecheck-build-test:
     name: Lint + Typecheck + Build + Test

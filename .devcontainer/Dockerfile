@@ -1,4 +1,30 @@
-FROM mcr.microsoft.com/devcontainers/base:ubuntu24.04
+# EVERY VERSION IN THIS FILE COMES FROM .devcontainer/.env.
+#
+# Docker Compose auto-loads that file (it sits beside docker-compose.yml and is
+# literally named `.env`) and passes each entry through
+# `build.args: { NAME: ${NAME} }`, which is what reaches the ARGs below. There
+# is deliberately no version literal anywhere in this Dockerfile — one manifest,
+# no second place to drift. See AGENTS.md, "Toolchain (mise)".
+#
+# Building this Dockerfile directly with `docker build` and no --build-arg
+# FAILS rather than silently producing an image with unpinned or missing
+# packages. It fails in one of two places depending on what is absent:
+#
+#   * BASE_IMAGE_TAG / BASE_IMAGE_DIGEST missing — at the FROM below, before any
+#     layer is built:
+#       failed to parse stage name "mcr.microsoft.com/devcontainers/base:@":
+#       invalid reference format
+#   * any other pin missing — at the explicit guard further down, which names
+#     the offending args.
+#
+# Build it through docker-compose.yml (or the devcontainer CLI, which uses
+# compose) so the manifest is applied.
+
+# ARGs consumed by FROM must be declared before it, and are out of scope after —
+# hence the re-declarations further down.
+ARG BASE_IMAGE_TAG
+ARG BASE_IMAGE_DIGEST
+FROM mcr.microsoft.com/devcontainers/base:${BASE_IMAGE_TAG}@${BASE_IMAGE_DIGEST}
 
 # Force apt over HTTPS. Outbound plain-HTTP (port 80) to the Ubuntu package
 # mirrors is flaky from some networks — connections to ports.ubuntu.com:80
@@ -16,38 +42,64 @@ RUN set -e; \
     done; \
     true
 
-# apt versions are pinned (supply-chain hygiene; also satisfies IaC scanners'
-# "Apt Get Install Pin Version Not Defined"). These track the ubuntu:24.04
-# archive; bump them when the base image rolls forward — a superseded security
-# patch is dropped from the archive and will fail the pinned install, which is
-# the intended signal to refresh the base image and these pins together.
+# apt versions are pinned via build args (supply-chain hygiene; also satisfies
+# IaC scanners' "Apt Get Install Pin Version Not Defined"). They track the
+# ubuntu:24.04 archive for BASE_IMAGE_DIGEST; bump them together — a superseded
+# security patch is dropped from the archive and will fail the pinned install,
+# which is the intended signal to refresh the base image and these pins as a
+# pair.
 #
 # Deliberately SHORT list. devcontainers/base:ubuntu24.04 ALREADY ships git,
 # zsh, gnupg2, openssh-client, ca-certificates and — of the network tools —
 # curl, wget, net-tools (ifconfig/netstat), iproute2 (ip/ss), lsof and jq; mise
 # (below) owns every language and CLI. Re-pinning what is already present would
-# only add stale-pin build failures. What remains is what neither provides:
-#
-#   build-essential — C toolchain for node-gyp native deps
-#   zlib1g-dev      — GraalVM `native-image` links against libz at build time;
-#                     without the headers a native-image build fails at link
-#   unzip/zip       — archive handling for tooling and CI scripts
-#   iputils-ping    — ping (absent from the base image)
-#   dnsutils        — dig / nslookup, for debugging service resolution
-#   netcat-openbsd  — nc, for "is that port actually open" checks
-#   traceroute      — path/MTU debugging
-#
-# Every version below was read from `apt-cache policy` against this exact base
-# image, so they are the current archive candidates rather than copied guesses.
+# only add stale-pin build failures. The rationale for each package that
+# remains is documented in .devcontainer/.env beside its pin.
+ARG APT_BUILD_ESSENTIAL_VERSION
+ARG APT_ZLIB1G_DEV_VERSION
+ARG APT_UNZIP_VERSION
+ARG APT_ZIP_VERSION
+ARG APT_IPUTILS_PING_VERSION
+ARG APT_DNSUTILS_VERSION
+ARG APT_NETCAT_OPENBSD_VERSION
+ARG APT_TRACEROUTE_VERSION
+ARG MISE_VERSION
+ARG CLAUDE_CODE_VERSION
+
+# Fail loud, immediately, if the manifest did not reach this build. Without
+# this an unset ARG expands to empty and `apt-get install build-essential=`
+# fails with a confusing parse error thirty lines of output later — or worse, a
+# missing MISE_VERSION silently installs whatever mise is latest, defeating the
+# pin.
+RUN set -e; \
+    missing=""; \
+    for v in APT_BUILD_ESSENTIAL_VERSION="${APT_BUILD_ESSENTIAL_VERSION}" \
+             APT_ZLIB1G_DEV_VERSION="${APT_ZLIB1G_DEV_VERSION}" \
+             APT_UNZIP_VERSION="${APT_UNZIP_VERSION}" \
+             APT_ZIP_VERSION="${APT_ZIP_VERSION}" \
+             APT_IPUTILS_PING_VERSION="${APT_IPUTILS_PING_VERSION}" \
+             APT_DNSUTILS_VERSION="${APT_DNSUTILS_VERSION}" \
+             APT_NETCAT_OPENBSD_VERSION="${APT_NETCAT_OPENBSD_VERSION}" \
+             APT_TRACEROUTE_VERSION="${APT_TRACEROUTE_VERSION}" \
+             MISE_VERSION="${MISE_VERSION}" \
+             CLAUDE_CODE_VERSION="${CLAUDE_CODE_VERSION}"; do \
+      case "$v" in *=) missing="$missing ${v%=}";; esac; \
+    done; \
+    if [ -n "$missing" ]; then \
+      echo "ERROR: build arg(s) not set:$missing" >&2; \
+      echo "Build via .devcontainer/docker-compose.yml so .devcontainer/.env is applied." >&2; \
+      exit 1; \
+    fi
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
-      build-essential=12.10ubuntu1 \
-      zlib1g-dev=1:1.3.dfsg-3.1ubuntu2.1 \
-      unzip=6.0-28ubuntu4.1 \
-      zip=3.0-13ubuntu0.2 \
-      iputils-ping=3:20240117-1ubuntu0.1 \
-      dnsutils=1:9.18.39-0ubuntu0.24.04.5 \
-      netcat-openbsd=1.226-1ubuntu2 \
-      traceroute=1:2.1.5-1 \
+      build-essential="${APT_BUILD_ESSENTIAL_VERSION}" \
+      zlib1g-dev="${APT_ZLIB1G_DEV_VERSION}" \
+      unzip="${APT_UNZIP_VERSION}" \
+      zip="${APT_ZIP_VERSION}" \
+      iputils-ping="${APT_IPUTILS_PING_VERSION}" \
+      dnsutils="${APT_DNSUTILS_VERSION}" \
+      netcat-openbsd="${APT_NETCAT_OPENBSD_VERSION}" \
+      traceroute="${APT_TRACEROUTE_VERSION}" \
  && rm -rf /var/lib/apt/lists/*
 
 # Everything below installs into the remote user's own home directory —
@@ -62,21 +114,26 @@ WORKDIR /workspace
 # Python, GraalVM (with native-image), uv, gh, the AWS CLI, Gortex, opencode
 # and rtk. (The Claude Code CLI is the exception — see the npm install -g
 # below for why it cannot come from mise.) There are deliberately no per-tool
-# curl/tar/sha256sum blocks in this Dockerfile any more — mise.lock pins every
-# one to an exact asset URL + SHA256 per platform (and verifies SLSA provenance
-# where published), which is both stronger and mechanically refreshable.
-RUN curl -fsSL https://mise.run | sh \
+# curl/tar/sha256sum blocks in this Dockerfile — mise.lock pins every one to an
+# exact asset URL + SHA256 per platform (and verifies SLSA provenance where
+# published), which is both stronger and mechanically refreshable.
+#
+# The installer is version-pinned too: it is the one binary that installs every
+# other binary, so leaving it floating would undermine everything below it.
+RUN curl -fsSL https://mise.run | MISE_VERSION="${MISE_VERSION}" sh \
  && echo 'eval "$(~/.local/bin/mise activate zsh)"' >> ~/.zshrc \
  && echo 'eval "$(~/.local/bin/mise activate bash)"' >> ~/.bashrc
 
 ENV PATH="/home/vscode/.local/bin:/home/vscode/.local/share/mise/shims:${PATH}"
 
 # COPY defaults to root:root ownership regardless of the active USER, so
-# --chown is required or `mise install` cannot write into /workspace. Both files
-# are needed: mise.toml declares the tools, mise.lock supplies the checksums it
-# verifies each download against. mise only honours a lockfile that EXISTS, so
-# copying it is what makes the build integrity-checked rather than
-# resolve-whatever-is-latest.
+# --chown is required or `mise install` cannot write into /workspace. THREE
+# files are needed, not two: mise.toml declares the tools, mise.lock supplies
+# the checksums each download is verified against, and .devcontainer/.env
+# supplies the VERSIONS mise.toml templates from — without it every
+# `{{ env.X }}` is undefined and mise exits 1 naming the missing field. The
+# relative path is preserved because mise resolves `_.file` against the
+# location of mise.toml, not the working directory.
 #
 # Pre-installing at build time means container start does not re-download a
 # ~1 GB toolchain. At runtime the repo mounts at /workspaces/<name>; mise reads
@@ -86,6 +143,8 @@ ENV PATH="/home/vscode/.local/bin:/home/vscode/.local/share/mise/shims:${PATH}"
 # /workspace does not cover the runtime mount point).
 # kics-scan ignore-line
 COPY --chown=vscode:vscode mise.toml mise.lock ./
+# kics-scan ignore-line
+COPY --chown=vscode:vscode .devcontainer/.env ./.devcontainer/.env
 RUN mise trust && mise install
 
 # pnpm is NOT a mise tool: package.json pins it via `packageManager`
@@ -98,9 +157,8 @@ RUN corepack enable
 # never runs and its platform-native binary is never fetched; `claude` then dies
 # at runtime with "claude native binary not installed". `npm install -g` runs the
 # postinstall properly. `mise reshim` publishes the `claude` shim onto PATH —
-# mise does not auto-shim ad-hoc `npm -g` binaries. Exact version, bumped
-# deliberately.
-RUN npm install -g @anthropic-ai/claude-code@2.1.220 && mise reshim
+# mise does not auto-shim ad-hoc `npm -g` binaries.
+RUN npm install -g "@anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}" && mise reshim
 
 # Stops the Claude Code CLI (and its plugins) self-updating away from the pin
 # above.
@@ -110,9 +168,9 @@ ENV DISABLE_AUTOUPDATER=1
 # GORTEX_TELEMETRY is Gortex's highest-precedence control (above DO_NOT_TRACK,
 # above a saved CLI choice, above its off-by-default), so setting it here means
 # every container built from this image has telemetry off with nothing to
-# remember and nothing to configure. It is deliberately NOT a devcontainer.json
-# `remoteEnv` entry — that would imply it is tunable per environment and would
-# silently do nothing for anyone running this image outside devcontainers.
+# remember and nothing to configure. It is deliberately NOT a compose
+# `environment` entry — that would imply it is tunable per environment and would
+# silently do nothing for anyone running this image outside this compose file.
 # postCreateCommand additionally runs `gortex telemetry off` (CLI-level,
 # belt-and-suspenders) so the on-disk state agrees with the env var.
 ENV GORTEX_TELEMETRY=0

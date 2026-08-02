@@ -122,14 +122,45 @@ jobs:
             echo "image=${IMAGE}"
           } >> "$GITHUB_OUTPUT"
 
+      # The Dockerfile takes every version as a build ARG and refuses to build
+      # without them. Locally that wiring is Docker Compose auto-loading
+      # `.devcontainer/.env`; build-push-action runs a plain `docker build`,
+      # which does not, so the manifest is passed explicitly here.
+      #
+      # Piping the whole file through rather than listing keys is deliberate:
+      # an explicit list is a second copy of the manifest that silently rots
+      # the moment a pin is added, and the failure mode is a build arg that is
+      # empty rather than absent. Comments and blank lines are stripped;
+      # everything else is already `KEY=VALUE`, which is exactly the format
+      # build-args wants.
+      #
+      # This does pass the ~10 mise tool versions too, which the Dockerfile
+      # does not declare as ARGs (mise reads them from the copied .env at
+      # `mise install` time instead). BuildKit logs "one or more build-args
+      # were not consumed" for those — expected and harmless. Do NOT "fix" it
+      # by hand-listing the consumed keys; that reintroduces the rot this
+      # avoids.
+      - name: Load pins from the manifest
+        id: pins
+        if: steps.scope.outputs.affected == 'true'
+        run: |
+          set -euo pipefail
+          {
+            echo 'args<<PINS_EOF'
+            grep -vE '^[[:space:]]*(#|$)' .devcontainer/.env
+            echo 'PINS_EOF'
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and push
         if: steps.scope.outputs.affected == 'true'
         uses: docker/build-push-action@v7
         with:
-          # Repo root, matching devcontainer.json's `"context": ".."` — the
-          # Dockerfile COPYs mise.toml and mise.lock from the root.
+          # Repo root, matching docker-compose.yml's `context: ..` — the
+          # Dockerfile COPYs mise.toml, mise.lock and .devcontainer/.env from
+          # the root.
           context: .
           file: .devcontainer/Dockerfile
+          build-args: ${{ steps.pins.outputs.args }}
           # linux/amd64 only: that is what GitHub runners and Codespaces use.
           # Adding linux/arm64 here means QEMU-emulating a ~2.8 GB image build
           # and pushes the job past 30 min. Apple-silicon developers build

@@ -107,7 +107,7 @@ Once your product takes shape:
 | 🪝 Git hooks       | husky + lint-staged + commitlint (conventional commits)                                                      |
 | 🐍 Python          | 3.14 + UV (in `scripts/`)                                                                                    |
 | 🧪 CI              | Lint, typecheck, build, test, format, OWASP ZAP, Snyk, CodeQL                                                |
-| 🚀 Deploy          | Vercel + AWS Amplify (both wired, both watching `deploy/dev\|stage\|prod` tracking branches)                 |
+| 🚀 Deploy          | Vercel + AWS Amplify — configs committed, one-time console setup per project                                 |
 | 🤖 Agents          | Claude Code (`.claude/`), GitHub Copilot (`.github/`), Gemini (`GEMINI.md`) — all redirecting to `AGENTS.md` |
 
 📖 Full layout, commands, conventions, deployment: see [`AGENTS.md`](./AGENTS.md).

@@ -222,10 +222,13 @@ Each platform still needs a one-time console setup that no committed file can pe
 | Setting                          | Value                   |
 | -------------------------------- | ----------------------- |
 | Root Directory                   | _empty_ — the repo root |
+| Framework Preset                 | Next.js                 |
 | Production Branch (→ Git)        | `deploy/prod`           |
 | Build / Install / Output Command | leave on **Auto**       |
 
-Root Directory is the load-bearing one: Vercel resolves `vercel.json` **relative to it**. Point it at `apps/web` and the committed config is never read — output paths double up (`apps/web/apps/web/.next`, build fails) and the `git.deploymentEnabled` branch gate silently stops applying, so `main` deploys straight to production. Leave the three commands on Auto for the same reason: `vercel.json` owns them, and a console override duplicates them and drifts.
+Root Directory is the load-bearing one: Vercel resolves the paths **inside** `vercel.json` relative to it. Point it at `apps/web` and `outputDirectory` becomes `apps/web/apps/web/.next` — the build itself succeeds, then fails looking for output that was never going to be there.
+
+Framework Preset needs setting by hand for the same reason: with Root Directory at the repo root there is no `package.json` with `next` beside it, so a fresh import autodetects **Other**. Leave the three commands on Auto — `vercel.json` owns them, and a console override duplicates them and drifts.
 
 **Amplify** — connect the repo, set `AMPLIFY_MONOREPO_APP_ROOT=apps/web` as an env var, and map each tracking branch to its environment. `amplify.yml`'s `buildPath: '/'` already handles the root build.
 

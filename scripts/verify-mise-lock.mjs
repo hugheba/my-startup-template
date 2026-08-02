@@ -55,7 +55,19 @@ for (const line of read(ENV_FILE).split('\n')) {
 // Only the [tools] table. Stop at the next top-level table so an [env] or
 // [settings] entry can never be mistaken for a tool.
 const tomlSrc = read(TOML);
-const toolsSection = tomlSrc.split(/^\[tools\]\s*$/m)[1]?.split(/^\[/m)[0] ?? '';
+
+// FAIL CLOSED when the table cannot be found. Falling back to an empty section
+// would leave `declared` empty, `problems` empty, and print
+// "0 tools × 4 platforms verified" on the way to exit 0 — the gate silently
+// disabling itself the moment the table is renamed or restructured. That is
+// the same fail-open class this file exists to close.
+const sections = tomlSrc.split(/^\[tools\]\s*$/m);
+if (sections.length < 2) {
+  console.error(`${TOML} has no [tools] table — nothing to verify.`);
+  console.error('If the table moved or was renamed, update this script to match.');
+  process.exit(1);
+}
+const toolsSection = sections[1].split(/^\[/m)[0];
 
 const declared = new Map(); // name -> resolved version
 const unresolved = [];
@@ -64,7 +76,13 @@ for (const raw of toolsSection.split('\n')) {
   const line = raw.replace(/#.*$/, '').trim();
   if (!line) continue;
   const m = /^("([^"]+)"|[A-Za-z0-9_.:@/-]+)\s*=\s*"([^"]*)"/.exec(line);
-  if (!m) continue;
+  if (!m) {
+    // Same reasoning as above: an entry shaped differently than this regex
+    // expects (`node = { version = "24" }`, say) must not be skipped into
+    // invisibility — that drops a tool out of the gate without a word.
+    unresolved.push(`cannot parse [tools] entry: ${line}`);
+    continue;
+  }
   const name = m[2] ?? m[1];
   const spec = m[3];
 
@@ -81,6 +99,10 @@ for (const raw of toolsSection.split('\n')) {
   }
   declared.set(name, env[key]);
 }
+
+// Last fail-closed backstop: a [tools] table that yields no tools is either a
+// mangled parse or an emptied toolchain. Neither is a passing state.
+if (declared.size === 0) unresolved.push(`no tools parsed from [tools] in ${TOML}`);
 
 // --- the lockfile ----------------------------------------------------------
 // [[tools.NAME]] / [[tools."NAME"]] then `version = "..."`, and

@@ -13,6 +13,56 @@ const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'opti
 const PROTOCOL = /^(workspace|link|file|catalog|npm|git|github|https?):/;
 const EXACT = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 
+// `npx pkg@latest` inside a script is a dependency too — it just isn't declared
+// as one, so the loops below never saw it. It resolves at run time, which means
+// two people running the same script on the same commit get different bytes:
+// exactly the failure the directive exists to prevent, arriving through the one
+// door the gate left open.
+//
+// Leading flags are skipped (`npx -y pkg@1.2.3`, `npx --package=x pkg@1.2.3`).
+// An invocation with no `@` carries no version to check and is left alone —
+// this gate is about loose pins, and flagging every unversioned `npx tsc`
+// would be noise.
+//
+// The version class must include the range operators. Matching only
+// `[\w.+-]` looks right and passes on `@latest`, but silently fails to match
+// `pkg@^2.0.0` at all — so the one specifier shape this gate most exists to
+// catch would sail through as "no match, nothing to flag".
+const DLX =
+  /\b(?:npx|npm exec|pnpm dlx|yarn dlx|bunx)\s+(?:-{1,2}[\w-]+(?:[= ][\w./-]+)?\s+)*(@?[\w./-]+)@([\w.\-+^~<>=|*]+)/g;
+
+// DLX is the only regex here complex enough to be wrong in a way that looks
+// right, and its failure mode is silent: a pattern that stops matching flags
+// nothing and reports success. So it checks itself on every run — no I/O, no
+// framework, microseconds, and no way to skip it. Each `null` case is a
+// false-positive guard; each pair is a shape that must keep matching.
+const DLX_CASES = [
+  ['npx -y bmad-method@latest install', 'bmad-method@latest'],
+  ['pnpm dlx @scope/tool@1.2.3 run', '@scope/tool@1.2.3'],
+  ['npx --package=foo bar@^2.0.0', 'bar@^2.0.0'],
+  ['npx foo@>=1.0.0', 'foo@>=1.0.0'],
+  ['npx foo@~1.2.0', 'foo@~1.2.0'],
+  ['npx foo@*', 'foo@*'],
+  ['bunx create-thing@next', 'create-thing@next'],
+  ['npx foo@1.2.3 | tee log', 'foo@1.2.3'],
+  ['npx tsc --noEmit', null],
+  ['git clone git@github.com:o/r.git', null],
+  ['ssh user@host echo hi', null],
+];
+
+for (const [input, want] of DLX_CASES) {
+  const [m] = [...input.matchAll(DLX)];
+  const got = m ? `${m[1]}@${m[2]}` : null;
+  if (got !== want) {
+    console.error(
+      `verify-exact-deps.mjs: the DLX pattern is broken — it is no longer detecting what it claims to.\n` +
+        `  input:    ${input}\n  expected: ${want}\n  got:      ${got}\n` +
+        `Fix the pattern before trusting this gate; as-is it can pass while unpinned invocations exist.`,
+    );
+    process.exit(2);
+  }
+}
+
 // `exclude` prunes the walk rather than filtering afterwards, which matters:
 // without it the glob descends into every node_modules directory. It receives
 // string paths on the Node versions this repo pins (verified on 24.x), but the
@@ -49,14 +99,23 @@ for (const file of files.sort()) {
     if (typeof spec !== 'string' || PROTOCOL.test(spec)) continue;
     if (!EXACT.test(spec)) violations.push(`${file}  pnpm.overrides["${selector}"] = "${spec}"`);
   }
+
+  for (const [name, script] of Object.entries(pkg.scripts ?? {})) {
+    if (typeof script !== 'string') continue;
+    for (const [, tool, spec] of script.matchAll(DLX)) {
+      if (!EXACT.test(spec)) violations.push(`${file}  scripts.${name} runs ${tool}@${spec}`);
+    }
+  }
 }
 
 if (violations.length > 0) {
   console.error('Dependencies must be pinned to an exact version (see AGENTS.md):\n');
   for (const v of violations) console.error('  ' + v);
   console.error(
-    `\n${violations.length} loose specifier(s). Replace each with the version pnpm resolved` +
-      '\n(`pnpm why <pkg>` or the pnpm-lock.yaml importer entry), then re-run `pnpm install`.',
+    `\n${violations.length} loose specifier(s). For a declared dependency, use the version pnpm` +
+      '\nresolved (`pnpm why <pkg>` or the pnpm-lock.yaml importer entry) and re-run `pnpm install`.' +
+      '\nFor an `npx`/`dlx` invocation there is nothing installed to inspect — take the version from' +
+      '\n`npm view <pkg> version` and pin it in the script.',
   );
   process.exit(1);
 }

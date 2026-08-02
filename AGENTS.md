@@ -215,7 +215,30 @@ The template is wired for both **Vercel** and **AWS Amplify Hosting**. Deploymen
 | `deploy/stage` | stage       | manual via `Promote` GitHub Action (target=stage) |
 | `deploy/prod`  | prod        | manual via `Promote` GitHub Action (target=prod)  |
 
-`vercel.json` and `amplify.yml` are both committed. After creating the actual Vercel/Amplify apps in their consoles, point each at the appropriate tracking branch.
+`vercel.json` and `amplify.yml` are both committed, and both build from the **repo root** — pnpm's `workspace:*` resolution has to walk every workspace, so neither builds from `apps/web`.
+
+Each platform still needs a one-time console setup that no committed file can perform, because these settings have no in-repo equivalent:
+
+**Vercel** — Settings → Build & Deployment:
+
+| Setting                          | Value                   |
+| -------------------------------- | ----------------------- |
+| Root Directory                   | _empty_ — the repo root |
+| Framework Preset                 | Next.js                 |
+| Production Branch (→ Git)        | `deploy/prod`           |
+| Build / Install / Output Command | leave on **Auto**       |
+
+Root Directory is the load-bearing one: Vercel resolves the paths **inside** `vercel.json` relative to it. Point it at `apps/web` and `outputDirectory` becomes `apps/web/apps/web/.next` — the build itself succeeds, then fails looking for output that was never going to be there.
+
+Framework Preset needs setting by hand for the same reason: with Root Directory at the repo root there is no `package.json` with `next` beside it, so a fresh import autodetects **Other**. Leave the three commands on Auto — `vercel.json` owns them, and a console override duplicates them and drifts.
+
+**Amplify** — connect the repo, set `AMPLIFY_MONOREPO_APP_ROOT=apps/web` as an env var, and map each tracking branch to its environment. `amplify.yml`'s `buildPath: '/'` already handles the root build.
+
+On a fresh clone only `main` exists. `deploy/dev` appears after the first `main` build; `deploy/stage` and `deploy/prod` are created by their first `Promote` run. Vercel's Production Branch dropdown only lists branches that already exist, so bootstrap them before that step:
+
+```bash
+git push origin main:refs/heads/deploy/stage main:refs/heads/deploy/prod
+```
 
 ## Security
 

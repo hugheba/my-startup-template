@@ -36,10 +36,21 @@ jobs:
       - name: Build app
         run: pnpm -F web build
 
+      # Polled with curl rather than `npx --yes wait-on`: that fetched an
+      # unpinned package from the network on every run, inside the workflow
+      # whose entire job is to be trustworthy, to do what four lines of shell
+      # already do. It also violated the exact-pinning rule in AGENTS.md —
+      # `pnpm verify:deps` never caught it because the gate scans package.json
+      # scripts, not workflow files.
       - name: Start app
         run: |
           pnpm -F web start &
-          npx --yes wait-on http://localhost:3000 --timeout 60000
+          for _ in $(seq 60); do
+            curl -fsS http://localhost:3000 >/dev/null && exit 0
+            sleep 1
+          done
+          echo "::error::app never answered on :3000 — ZAP would scan nothing"
+          exit 1
         env:
           NEXT_PUBLIC_APP_URL: http://localhost:3000
 

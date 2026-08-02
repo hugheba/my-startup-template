@@ -44,12 +44,22 @@ jobs:
       # scripts, not workflow files.
       - name: Start app
         run: |
-          pnpm -F web start &
+          pnpm -F web start > /tmp/zap-boot.log 2>&1 &
+          pid=$!
           for _ in $(seq 60); do
             curl -fsS http://localhost:3000 >/dev/null && exit 0
+            # Same early-exit as the boot check in ci.yml: a crashed server is
+            # the likeliest reason this step fails, and polling it for the full
+            # minute reports a timeout instead of the stack trace.
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "::error::app exited during startup — ZAP would scan nothing"
+              cat /tmp/zap-boot.log
+              exit 1
+            fi
             sleep 1
           done
-          echo "::error::app never answered on :3000 — ZAP would scan nothing"
+          echo "::error::app never answered on :3000 within 60s — ZAP would scan nothing"
+          cat /tmp/zap-boot.log
           exit 1
         env:
           NEXT_PUBLIC_APP_URL: http://localhost:3000

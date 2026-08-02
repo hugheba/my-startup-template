@@ -42,7 +42,7 @@
     "prettier-plugin-tailwindcss": "0.8.1",
     "secretlint": "13.0.4",
     "turbo": "2.10.8",
-    "typescript": "5.9.3"
+    "typescript": "6.0.3"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx,mjs,cjs}": [

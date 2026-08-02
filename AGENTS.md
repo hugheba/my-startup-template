@@ -117,6 +117,7 @@ Where the rule applies today:
 | ------------------------------------ | ---------------------------------------------------------- |
 | workspace `package.json` deps        | exact versions + `pnpm verify:deps` gate                   |
 | `pnpm.overrides`                     | exact versions (the key may be a range — it is a selector) |
+| `npx` / `dlx` inside a script        | exact versions + `pnpm verify:deps` gate                   |
 | toolchain (Node, Python, GraalVM, …) | `mise.toml` exact versions + `mise.lock` checksums         |
 | `.nvmrc` / `scripts/.python-version` | exact, kept in lockstep with `mise.toml`                   |
 | devcontainer OS packages             | apt version pins in `.devcontainer/Dockerfile`             |
@@ -148,7 +149,8 @@ pnpm lint:md:fix
 pnpm verify:vscode     # diffs .vscode/ vs .devcontainer/ extension lists
 pnpm verify:deps       # fails on any non-exact dependency specifier
 pnpm verify:mise       # fails if mise.lock drifts from .devcontainer/.env
-pnpm bmad:init         # initialize BMAD interactively
+pnpm bmad:init         # install BMAD non-interactively (--yes, preset modules)
+pnpm bmad:init:interactive  # same installer, but prompts for tools and modules
 ```
 
 Filter to a single workspace with `-F`:

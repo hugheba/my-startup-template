@@ -44,9 +44,16 @@ jobs:
             prod)  SRC="deploy/stage"; DST="deploy/prod"  ;;
             *) echo "::error::Unknown target: ${{ inputs.target }}"; exit 1 ;;
           esac
-          git fetch origin "$SRC:refs/remotes/origin/$SRC" "$DST:refs/remotes/origin/$DST"
+          git fetch origin "$SRC:refs/remotes/origin/$SRC"
+          # The target tracking branch doesn't exist until its first
+          # promotion, and a failed fetch aborts the whole run — so fetch it
+          # separately and let an empty DST_SHA mean "first promotion".
+          git fetch origin "$DST:refs/remotes/origin/$DST" 2>/dev/null || true
           SRC_SHA=$(git rev-parse "origin/$SRC")
-          DST_SHA=$(git rev-parse "origin/$DST")
+          # --verify -q is required: plain rev-parse echoes an unresolvable ref
+          # back on stdout instead of returning empty, so DST_SHA would never
+          # be empty and the first-promotion path below could never trigger.
+          DST_SHA=$(git rev-parse --verify -q "origin/$DST" || true)
           {
             echo "source_branch=$SRC"
             echo "target_branch=$DST"
@@ -56,6 +63,10 @@ jobs:
 
       - name: Verify target is ancestor of source (fast-forward only)
         run: |
+          if [ -z "${{ steps.refs.outputs.target_sha }}" ]; then
+            echo "Target branch does not exist yet — this promotion creates it."
+            exit 0
+          fi
           if [ "${{ steps.refs.outputs.source_sha }}" = "${{ steps.refs.outputs.target_sha }}" ]; then
             echo "::warning::Source and target are at the same commit. Nothing to promote."
             exit 0
@@ -69,7 +80,11 @@ jobs:
         run: |
           SRC="${{ steps.refs.outputs.source_branch }}"
           DST="${{ steps.refs.outputs.target_branch }}"
-          COMMITS=$(git log --oneline "origin/$DST..origin/$SRC" || echo "")
+          if git rev-parse --verify -q "origin/$DST" >/dev/null; then
+            COMMITS=$(git log --oneline "origin/$DST..origin/$SRC")
+          else
+            COMMITS=$(git log --oneline -20 "origin/$SRC")
+          fi
           {
             echo "## Promotion plan: \`$SRC\` → \`$DST\` (target: **${{ inputs.target }}**)"
             echo ""
@@ -101,8 +116,11 @@ jobs:
       - name: Fetch source and target branches
         run: |
           git fetch origin \
-            "${{ needs.plan.outputs.source_branch }}:refs/remotes/origin/${{ needs.plan.outputs.source_branch }}" \
-            "${{ needs.plan.outputs.target_branch }}:refs/remotes/origin/${{ needs.plan.outputs.target_branch }}"
+            "${{ needs.plan.outputs.source_branch }}:refs/remotes/origin/${{ needs.plan.outputs.source_branch }}"
+          # Absent before the target's first promotion; the push below creates it.
+          git fetch origin \
+            "${{ needs.plan.outputs.target_branch }}:refs/remotes/origin/${{ needs.plan.outputs.target_branch }}" \
+            2>/dev/null || true
 
       - name: Re-verify source SHA hasn't moved since plan
         run: |

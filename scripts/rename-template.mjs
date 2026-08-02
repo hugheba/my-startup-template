@@ -92,18 +92,31 @@ async function isBinary(filePath) {
   }
 }
 
-async function rewriteFile(filePath, newName, newScope) {
+async function rewriteFile(filePath, newName) {
   if (await isBinary(filePath)) return { changed: false };
   const original = await readFile(filePath, 'utf8');
-  // Replace scoped references first so we don't double-replace
-  let next = original.split(OLD_SCOPE).join(newScope);
-  next = next.split(OLD_NAME).join(newName);
+  // One pass over the bare name covers the scope too: OLD_SCOPE is just
+  // `@` + OLD_NAME, and the new scope is `@` + newName. A separate scope pass
+  // is not only redundant, it corrupts any name containing the template name —
+  // `my-startup-template-v2` turned `@my-startup-template/ui` into
+  // `@my-startup-template-v2-v2/ui`, because the second pass re-matched what
+  // the first had just written.
+  const next = original.split(OLD_NAME).join(newName);
   if (next === original) return { changed: false };
   await writeFile(filePath, next);
   return { changed: true };
 }
 
 async function main() {
+  // Without a TTY, readline drops the answer typed after the first prompt and
+  // then never resolves — Node empties its event loop and exits 0 having
+  // changed nothing. Piping answers in looks like a clean success. Fail loudly
+  // instead, since an agent running this unattended would believe it worked.
+  if (!process.stdin.isTTY) {
+    console.error('x rename:project is interactive — run it from a terminal.');
+    process.exit(1);
+  }
+
   const rl = createInterface({ input: process.stdin, output: process.stdout });
 
   console.log('\nRename project from "my-startup-template" to your project name\n');
@@ -134,7 +147,7 @@ async function main() {
   console.log('\nScanning files...');
   const changes = [];
   for await (const file of walk(REPO_ROOT)) {
-    const result = await rewriteFile(file, newName, newScope);
+    const result = await rewriteFile(file, newName);
     if (result.changed) {
       changes.push(relative(REPO_ROOT, file));
     }

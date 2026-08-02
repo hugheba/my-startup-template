@@ -56,7 +56,7 @@ It will walk you through the brainstorm → PRD → architecture phases.
 | Language        | TypeScript 5.6+ (strict, `noUncheckedIndexedAccess`)           |
 | Linting         | ESLint 9 flat config                                           |
 | Formatting      | Prettier 3                                                     |
-| Git hooks       | husky + lint-staged + commitlint (conventional commits)        |
+| Git hooks       | lefthook + commitlint (conventional commits)                   |
 | Python          | Python 3.14 + UV (in `scripts/`)                               |
 
 ## Monorepo conventions
@@ -183,8 +183,9 @@ uv add --dev <package> # add a dev dep
 ## Code quality discipline
 
 - **TypeScript:** strict mode, no `any` without justification, no unchecked array access.
-- **ESLint** auto-fixes on save (VS Code) and on staged files (`lint-staged` pre-commit).
+- **ESLint** auto-fixes on save (VS Code) and on staged files (lefthook pre-commit).
 - **Prettier** formats on save and on staged files.
+- **Git hooks** live in [`lefthook.yml`](lefthook.yml) — one file for both the hook definitions and the checks they run. `pnpm install` installs them via the `prepare` script. Jobs there run sequentially on purpose; see the comment at the top of the file before adding `parallel: true`.
 - **Commits** must follow conventional-commit format (`feat(scope):`, `fix(scope):`, `chore:`, `docs:`, `ci:`, `build:`). Enforced by commitlint on `commit-msg`.
 - **VS Code extensions** are kept in lockstep between `.vscode/extensions.json` (recommendations) and `.devcontainer/devcontainer.json` (auto-installed in Codespaces). `pnpm verify:vscode` enforces this in CI.
 
@@ -204,7 +205,11 @@ uv add --dev <package> # add a dev dep
 
 **Never** put a secret behind a `NEXT_PUBLIC_*` prefix — those vars are inlined into the client bundle at build time and end up shipped to every browser.
 
-**Pre-commit secret scan:** [secretlint](https://github.com/secretlint/secretlint) runs on every staged file via lint-staged. If you accidentally stage a credential (AWS key, GitHub token, Stripe key, npm token, Slack webhook, etc.), the commit is rejected. To bypass for a confirmed false positive, add a precise pattern to `.secretlintrc.json` `allows` field — do NOT use `--no-verify`.
+**Pre-commit secret scan:** [secretlint](https://github.com/secretlint/secretlint) runs on every staged file via lefthook — unglobbed, because a credential can land in any file type. If you accidentally stage a GitHub token, Stripe key, npm token, or Slack webhook, the commit is rejected.
+
+Its recommended preset does **not** flag AWS credentials — neither an `AKIA…` access key id nor a secret access key trips it. That is measured, not assumed, so do not add AWS keys to the list above. gitleaks in CI catches them and blocks the merge; the pre-commit hook is the fast filter, not the boundary.
+
+To bypass for a confirmed false positive, add a precise pattern to the `.secretlintrc.json` `allows` field — do NOT use `--no-verify`.
 
 ## Deployment
 
@@ -245,7 +250,7 @@ git push origin main:refs/heads/deploy/stage main:refs/heads/deploy/prod
 ## Security
 
 - **CI** runs OWASP ZAP baseline DAST, Snyk dependency scan, `pnpm audit`, and CodeQL on every PR (see `.github/workflows/security.yml`). Those four are advisory.
-- **gitleaks** scans the full commit history on every PR and **blocks the merge** on a finding. `secretlint` (via lint-staged) only sees the diff you are about to commit; gitleaks catches a secret introduced in an earlier commit on the branch.
+- **gitleaks** scans the full commit history on every PR and **blocks the merge** on a finding. `secretlint` (via lefthook) only sees the diff you are about to commit; gitleaks catches a secret introduced in an earlier commit on the branch, and covers the credential types secretlint's preset misses (AWS keys).
 - **Dependabot** opens PRs for npm, GitHub Actions, devcontainers, and pip updates daily.
 - **GitHub Environments** gate `stage` and `prod` promotions behind required reviewers.
 - **Every binary the dev container downloads is version-pinned and SHA256-verified** (`.devcontainer/Dockerfile`). A hash mismatch fails the build rather than silently installing different bytes. When bumping a version, refresh its hash in the same commit.

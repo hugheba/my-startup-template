@@ -158,9 +158,10 @@ jobs:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
     # BLOCKING, unlike the advisory scans above. secretlint already runs on
-    # staged files via lint-staged, but that only sees the diff a developer is
+    # staged files via lefthook, but that only sees the diff a developer is
     # about to commit — it cannot catch a secret introduced in an earlier commit
     # on the branch, or one added by a tool. gitleaks scans the whole history.
+    # It also covers what secretlint's preset misses, notably AWS keys.
     steps:
       - uses: actions/checkout@v7
         with:

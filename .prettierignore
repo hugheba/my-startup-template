@@ -7,7 +7,6 @@ coverage
 pnpm-lock.yaml
 uv.lock
 *.tsbuildinfo
-.husky
 scripts/.venv
 scripts/__pycache__
 scripts/.ruff_cache

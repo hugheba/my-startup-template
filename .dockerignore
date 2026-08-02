@@ -31,7 +31,6 @@ coverage
 # build context that gets uploaded to a daemon.
 .git
 .github
-.husky
 .remember
 .claude
 .vscode

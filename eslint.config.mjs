@@ -2,10 +2,10 @@ import reactLibConfig from '@my-startup-template/eslint-config/react-lib';
 import nextPlugin from '@next/eslint-plugin-next';
 
 /**
- * Root ESLint config for lint-staged (pre-commit hook).
+ * Root ESLint config for the lefthook pre-commit hook.
  *
  * ESLint 9 flat config does NOT cascade per-directory — when invoked from the
- * repo root (as lint-staged does), only this file is consulted. To match the
+ * repo root (as the hook does), only this file is consulted. To match the
  * coverage of `pnpm -F web lint` and `pnpm -F @my-startup-template/ui lint`,
  * we apply react-lib globally and Next-specific rules scoped to apps/web.
  *

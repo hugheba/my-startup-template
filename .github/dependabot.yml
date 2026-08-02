@@ -14,7 +14,7 @@ updates:
       types:
         patterns: ['@types/*']
       commit-tooling:
-        patterns: ['husky', 'lint-staged', '@commitlint/*', 'commitlint']
+        patterns: ['lefthook', '@commitlint/*', 'commitlint']
     ignore:
       # ESLint 10 removed context.getFilename(), which eslint-plugin-react
       # still calls — it throws "contextOrFilename.getFilename is not a

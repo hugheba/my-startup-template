@@ -105,6 +105,7 @@ Once your product takes shape:
 | 🔷 Language        | TypeScript 5.6+ strict                                                                                       |
 | ✨ Linting/format  | ESLint 9 flat config + Prettier 3                                                                            |
 | 🪝 Git hooks       | lefthook + commitlint (conventional commits)                                                                 |
+| 🔬 Testing         | Vitest (`apps/web`)                                                                                          |
 | 🐍 Python          | 3.14 + UV (in `scripts/`)                                                                                    |
 | 🧪 CI              | Lint, typecheck, build, test, format, OWASP ZAP, Snyk, CodeQL                                                |
 | 🚀 Deploy          | Vercel + AWS Amplify — configs committed, one-time console setup per project                                 |

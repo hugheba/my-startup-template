@@ -68,26 +68,33 @@ It will walk you through the brainstorm → PRD → architecture phases.
 
 ## Toolchain (mise)
 
-`mise.toml` is the single source of truth for every language and CLI: Node, Python, GraalVM CE 21 (with `native-image`), uv, the GitHub CLI, the AWS CLI, Gortex, opencode and rtk. The dev container installs mise and runs `mise install` — there are no hand-rolled `curl | tar` blocks in the Dockerfile.
+**Every pinned version lives in [`.devcontainer/.env`](.devcontainer/.env)** — base image digest, apt packages, the mise installer, every mise-managed tool, and the npm-global Claude Code CLI. There are no version literals in `mise.toml`, the Dockerfile, or `docker-compose.yml`.
 
-`mise.lock` pins each tool to an exact release-asset URL and SHA256 **per platform**, and records SLSA provenance where the publisher signs it. **Never delete it** — mise only maintains a lockfile that already exists, and without it builds silently downgrade to "resolve whatever is latest".
+That one file has **two consumers**:
 
-To bump a tool:
+1. **Docker Compose** auto-loads it (same directory, that exact filename) and passes each entry to the Dockerfile's build ARGs — which is why the dev container is built through `docker-compose.yml` rather than a plain `build:` block.
+2. **mise** loads it via `[env] _.file` and templates every `[tools]` version from it with `{{ env.X }}`.
+
+`mise.lock` pins each tool to an exact release-asset URL and SHA256 **per platform**, and records SLSA provenance where the publisher signs it. Templating costs nothing here — the lock is generated against the resolved versions. **Never delete it** — mise only maintains a lockfile that already exists, and without it builds silently downgrade to "resolve whatever is latest".
+
+To bump anything:
 
 ```bash
-# 1. edit the version in mise.toml, then refresh the lock for every platform
-#    the container and contributors use (this downloads nothing to install):
-mise lock <tool> -p linux-x64,linux-arm64,macos-arm64,macos-x64
-# 2. commit mise.toml and mise.lock together
+# 1. edit the value in .devcontainer/.env, then refresh the lock for every
+#    platform the container and contributors use (installs nothing):
+mise lock -p linux-x64,linux-arm64,macos-arm64,macos-x64
+# 2. commit .devcontainer/.env and mise.lock together
 ```
 
-Three things stay outside mise:
+**CI fails the PR if you forget step 2.** A bumped version against a stale lock still takes effect, but the orphaned lock entry leaves that tool's next install with no reviewed checksum — mise records whatever it downloads. That is fail-open, so it is gated rather than trusted to discipline.
+
+Three things stay outside mise (all still pinned in `.devcontainer/.env`):
 
 - **pnpm** — pinned by `packageManager` + Corepack; a second pin would drift.
-- **docker-in-docker** — a daemon and a privileged container, not a versioned binary. It is a devcontainer feature, configured with `moby: false` so it installs Docker CE.
-- **the Claude Code CLI** — mise's npm backend installs with `--ignore-scripts` / `--omit=optional`, so the package's postinstall never runs and its platform-native binary is never fetched; `claude` then fails at runtime with "claude native binary not installed". It is `npm install -g`'d at an exact version in the Dockerfile instead.
+- **docker-in-docker** — a daemon and a privileged container, not a versioned binary. It is a devcontainer feature (`moby: false`, so it installs Docker CE), pinned in `devcontainer-lock.json`.
+- **the Claude Code CLI** — mise's npm backend installs with `--ignore-scripts` / `--omit=optional`, so the package's postinstall never runs and its platform-native binary is never fetched; `claude` then fails at runtime with "claude native binary not installed". It is `npm install -g`'d at `CLAUDE_CODE_VERSION` in the Dockerfile instead.
 
-Anything the OS must provide — `build-essential`, `zlib1g-dev` (GraalVM `native-image` links against libz), and the network tools missing from the base image (`ping`, `dig`, `nc`, `traceroute`) — is apt-pinned in the Dockerfile.
+Anything the OS must provide — `build-essential`, `zlib1g-dev` (GraalVM `native-image` links against libz), and the network tools missing from the base image (`ping`, `dig`, `nc`, `traceroute`) — is apt-pinned in `.devcontainer/.env` and consumed as build args.
 
 ## Dependency pinning — MANDATORY
 
@@ -138,6 +145,7 @@ pnpm lint:md           # markdownlint-cli2 (config: .markdownlint-cli2.jsonc)
 pnpm lint:md:fix
 pnpm verify:vscode     # diffs .vscode/ vs .devcontainer/ extension lists
 pnpm verify:deps       # fails on any non-exact dependency specifier
+pnpm verify:mise       # fails if mise.lock drifts from .devcontainer/.env
 pnpm bmad:init         # initialize BMAD interactively
 ```
 

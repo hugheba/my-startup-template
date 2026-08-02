@@ -33,12 +33,22 @@
       "moby": false
     }
   },
-  // `mise trust` first: trust is keyed by config path, and the Dockerfile only
-  // trusted the build-time copy at /workspace — the live repo mounts elsewhere.
-  // `gortex telemetry off` is belt-and-suspenders on top of the image's
-  // GORTEX_TELEMETRY=0, so the on-disk state agrees with the env var; `gortex
-  // track` indexes this workspace so the MCP server has a graph to answer from.
-  "postCreateCommand": "mise trust && corepack enable && pnpm install && (cd scripts && uv sync) && gortex telemetry off && gortex track \"$PWD\"",
+  // Both phases run through one runner. What each phase does — and in what
+  // order — lives in the arrays at the top of that script, which also
+  // documents the contract for adding a step.
+  //
+  // This replaced an `&&` chain, which had one fatal property: the first
+  // non-zero exit skipped every command after it, so a single hiccup left the
+  // container half-configured while the phase still looked like it completed.
+  // The runner runs every step, reports each one's exit code, and fails the
+  // phase at the end.
+  //
+  // Add `bash .devcontainer/scripts/devcontainer-phase.sh postcreate check` to
+  // re-run just the read-only assertions from inside a running container.
+  "postCreateCommand": "bash .devcontainer/scripts/devcontainer-phase.sh postcreate",
+  // poststart, not postcreate: the Gortex daemon does not survive a container
+  // stop/start, so it has to be brought back up on every boot.
+  "postStartCommand": "bash .devcontainer/scripts/devcontainer-phase.sh poststart",
   "forwardPorts": [3000],
   "portsAttributes": {
     "3000": { "label": "Next.js dev server", "onAutoForward": "notify" }

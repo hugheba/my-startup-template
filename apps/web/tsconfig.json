@@ -1,7 +1,10 @@
 {
   "extends": "@my-startup-template/tsconfig/nextjs.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    // No `baseUrl`: TypeScript 6 deprecates it (TS5101) and drops it in 7.
+    // It was redundant anyway — `paths` values are resolved relative to this
+    // file's directory when baseUrl is absent, which is what "./*" already
+    // meant here.
     "paths": {
       "@/*": ["./*"]
     }

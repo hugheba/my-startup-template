@@ -26,7 +26,7 @@
     "verify:deps": "node scripts/verify-exact-deps.mjs",
     "verify:mise": "node scripts/verify-mise-lock.mjs",
     "rename:project": "node scripts/rename-template.mjs",
-    "prepare": "husky"
+    "prepare": "lefthook install || echo '! lefthook install failed - git hooks are NOT active'"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.1",
@@ -34,8 +34,7 @@
     "@my-startup-template/prettier-config": "workspace:*",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.4",
     "eslint": "9.39.5",
-    "husky": "9.1.7",
-    "lint-staged": "17.3.0",
+    "lefthook": "2.1.10",
     "markdownlint-cli2": "0.23.2",
     "prettier": "3.9.6",
     "prettier-plugin-organize-imports": "4.3.0",
@@ -43,18 +42,6 @@
     "secretlint": "13.0.4",
     "turbo": "2.10.8",
     "typescript": "6.0.3"
-  },
-  "lint-staged": {
-    "*.{ts,tsx,js,jsx,mjs,cjs}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{json,md,yml,yaml,css}": [
-      "prettier --write"
-    ],
-    "*": [
-      "secretlint --secretlintignore .gitignore"
-    ]
   },
   "prettier": "@my-startup-template/prettier-config",
   "pnpm": {

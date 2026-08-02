@@ -104,7 +104,7 @@ Once your product takes shape:
 | 🌐 Web app         | Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (new-york)                                                   |
 | 🔷 Language        | TypeScript 5.6+ strict                                                                                       |
 | ✨ Linting/format  | ESLint 9 flat config + Prettier 3                                                                            |
-| 🪝 Git hooks       | husky + lint-staged + commitlint (conventional commits)                                                      |
+| 🪝 Git hooks       | lefthook + commitlint (conventional commits)                                                                 |
 | 🐍 Python          | 3.14 + UV (in `scripts/`)                                                                                    |
 | 🧪 CI              | Lint, typecheck, build, test, format, OWASP ZAP, Snyk, CodeQL                                                |
 | 🚀 Deploy          | Vercel + AWS Amplify — configs committed, one-time console setup per project                                 |

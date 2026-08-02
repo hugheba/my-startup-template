@@ -1,0 +1,36 @@
+# Git hooks. Replaces husky + lint-staged: lefthook both installs the hooks
+# (`pnpm prepare` → `lefthook install`) and runs the checks, so what used to be
+# two shell scripts under `.husky/` plus a `lint-staged` block in package.json
+# now lives here.
+#
+# Jobs run SEQUENTIALLY — do not add `parallel: true`. `eslint --fix` and
+# `prettier --write` rewrite the same staged files, so running them
+# concurrently races on the same bytes and whichever finishes last wins.
+# lint-staged serialized them within a glob group for exactly this reason.
+#
+# `{staged_files}` expands to `git diff --name-only --cached --diff-filter=ACMR`,
+# so deleted files are already excluded and no job is handed a path that no
+# longer exists.
+
+pre-commit:
+  jobs:
+    - name: eslint
+      glob: '*.{ts,tsx,js,jsx,mjs,cjs}'
+      run: pnpm exec eslint --fix {staged_files}
+      stage_fixed: true
+
+    - name: prettier
+      glob: '*.{ts,tsx,js,jsx,mjs,cjs,json,md,yml,yaml,css}'
+      run: pnpm exec prettier --write {staged_files}
+      stage_fixed: true
+
+    # Deliberately unglobbed: a credential can land in any file type, including
+    # ones no formatter above touches (.env, .pem, .txt, a test fixture). This
+    # job only reads, so it needs no stage_fixed.
+    - name: secretlint
+      run: pnpm exec secretlint --secretlintignore .gitignore {staged_files}
+
+commit-msg:
+  jobs:
+    - name: commitlint
+      run: pnpm exec commitlint --edit {1}

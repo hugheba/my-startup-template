@@ -101,3 +101,40 @@ jobs:
 
       - name: Lint + Typecheck + Build + Test
         run: pnpm turbo run lint typecheck build test
+
+      # A green `next build` does not mean the app runs. A server component
+      # that reads a missing env var, a runtime-only import that resolved at
+      # build time, a broken standalone output — all compile clean and die on
+      # the first request. The only job that actually booted the app was the
+      # ZAP scan, which is NOT a required check, so a PR that builds and
+      # cannot start was mergeable.
+      #
+      # This lives here rather than in its own job for two reasons: the build
+      # it needs is already on disk, and a new job would need its `name`
+      # registered in branch protection to block anything (see the NOTE above
+      # verify-vscode). A step in an already-required job blocks on day one.
+      #
+      # The job name is deliberately NOT updated to mention boot — it is a
+      # required status check and renaming it silently un-gates the branch.
+      - name: Boot check
+        run: |
+          pnpm -F web start > /tmp/boot.log 2>&1 &
+          pid=$!
+          for _ in $(seq 60); do
+            curl -fsS http://localhost:3000 >/dev/null && exit 0
+            # A process that died is the failure this check exists to catch, so
+            # report it the moment it happens. Polling a dead server for the
+            # full timeout turns a one-second answer into a one-minute wait and
+            # then blames it on a timeout.
+            if ! kill -0 "$pid" 2>/dev/null; then
+              echo "::error::app exited during startup"
+              cat /tmp/boot.log
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::app built successfully but never answered on :3000 within 60s"
+          cat /tmp/boot.log
+          exit 1
+        env:
+          NEXT_PUBLIC_APP_URL: http://localhost:3000

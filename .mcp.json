@@ -1,0 +1,32 @@
+{
+  "mcpServers": {
+    "context7": {
+      "type": "http",
+      "url": "https://mcp.context7.com/mcp"
+    },
+    "playwright": {
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@latest"]
+    },
+    "shadcn": {
+      "command": "npx",
+      "args": ["-y", "shadcn@latest", "mcp"]
+    },
+    "supabase": {
+      "_comment": "Rejected by default via disabledMcpjsonServers in .claude/settings.json. Enable when BMAD picks Supabase as the DB: drop it from that list and set SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF.",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@latest",
+        "--project-ref",
+        "${SUPABASE_PROJECT_REF}"
+      ],
+      "env": { "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}" }
+    },
+    "gortex": {
+      "_comment": "Code-intelligence graph over this repo (replaces CodeGraphContext + GitNexus). Installed by mise (see mise.toml) and resolved through its shim on PATH, then indexed by postCreateCommand; bare `gortex` also resolves for host users who installed it themselves. Needs no credential and binds no port.",
+      "command": "gortex",
+      "args": ["mcp"]
+    }
+  }
+}

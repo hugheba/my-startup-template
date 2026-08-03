@@ -277,7 +277,7 @@ git push origin main:refs/heads/deploy/stage main:refs/heads/deploy/prod
 
 ## Code intelligence (Gortex)
 
-[Gortex](https://github.com/zzet/gortex) indexes this repo into a queryable graph and serves it to agents over MCP. It is baked into the dev container and indexed by `postCreateCommand`; the MCP server is registered in `.claude/settings.json`.
+[Gortex](https://github.com/zzet/gortex) indexes this repo into a queryable graph and serves it to agents over MCP. It is baked into the dev container and indexed by `postCreateCommand`; the MCP server is registered in `.mcp.json`.
 
 Prefer graph queries over blind file reads when locating code:
 
@@ -301,13 +301,14 @@ packages/config/         eslint, tsconfig, tailwind, prettier
 scripts/                 Python (UV) ad-hoc scripts + custom MCPs
 .devcontainer/           Codespaces config
 .github/                 CI, security, deploy workflows + Copilot instructions
-.claude/                 Claude Code settings + MCP entries
+.mcp.json                MCP servers (project scope, shared)
+.claude/                 Claude Code settings (permissions, MCP approvals)
 .vscode/                 Workspace settings + recommended extensions
 docs/superpowers/        Design specs and implementation plans
 ```
 
 ## When extending the template (post-BMAD-init)
 
-1. **Adding a DB:** uncomment the `supabase` MCP in `.claude/settings.json` and add the relevant credentials. Add migrations apply steps in `deploy-dev.yml` / `promote.yml` (placeholders are already commented in).
+1. **Adding a DB:** the `supabase` MCP is defined in `.mcp.json` and rejected by `disabledMcpjsonServers` in `.claude/settings.json` — drop it from that list and set `SUPABASE_ACCESS_TOKEN` / `SUPABASE_PROJECT_REF`. Add migrations apply steps in `deploy-dev.yml` / `promote.yml` (placeholders are already commented in).
 2. **Adding another app:** create `apps/<name>/` matching the `apps/web/` shape. Add an `appRoot:` block to `amplify.yml` (the existing block has comments showing the multi-app pattern).
 3. **Adding shared code:** extract into `packages/<name>/` with its own `package.json` (`workspace:*`), an `eslint.config.mjs` extending the shared config, and a `tsconfig.json` extending the shared config.

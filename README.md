@@ -99,7 +99,7 @@ Once your product takes shape:
 | Layer              | Choice                                                                                                       |
 | ------------------ | ------------------------------------------------------------------------------------------------------------ |
 | 🟢 Runtime         | Node 24 LTS                                                                                                  |
-| 📥 Package manager | pnpm 9.15.0 (Corepack)                                                                                       |
+| 📥 Package manager | pnpm 11.20.0 (Corepack)                                                                                      |
 | 🏗️ Monorepo        | Turborepo                                                                                                    |
 | 🌐 Web app         | Next.js 16 + React 19 + Tailwind v4 + shadcn/ui (new-york)                                                   |
 | 🔷 Language        | TypeScript 5.6+ strict                                                                                       |

@@ -2,3 +2,54 @@ packages:
   - 'apps/*'
   - 'packages/*'
   - 'packages/config/*'
+
+# ---------------------------------------------------------------------------
+# pnpm settings
+#
+# As of pnpm 11 this file is the ONLY place pnpm reads settings from. `.npmrc`
+# is restricted to auth/registry credentials, and the `pnpm` field in
+# package.json is no longer read at all. A leftover `pnpm` field at least warns;
+# a setting left in `.npmrc` is dropped in COMPLETE SILENCE and simply stops
+# applying. Keep settings here.
+# ---------------------------------------------------------------------------
+
+# Refuse to install a package that declares incompatibility with our Node.
+engineStrict: true
+
+# `pmOnFail` is deliberately NOT set. Its default, `download`, is what makes
+# `packageManager` a pin rather than an assertion: a contributor whose shell
+# pnpm differs gets the pinned version fetched and run for them. `error` looks
+# stricter but enforces nothing extra — the pinned version runs either way —
+# and it breaks anything invoking pnpm outside an activated shell, git hooks
+# first among them. The old `.npmrc` carried `package-manager-strict=true`,
+# which only restated pnpm 9's default; pnpm 10 changed that default on purpose.
+
+autoInstallPeers: true
+strictPeerDependencies: false
+
+# AWS Amplify WEB_COMPUTE (Next.js SSR) can't resolve `next` through pnpm's
+# default symlinked store at deploy time. A hoisted (flat) node_modules lets
+# Amplify and Next's standalone tracer find runtime deps. See FAQ:
+# https://github.com/aws-amplify/amplify-hosting/blob/main/FAQ.md#using-a-monorepo-framework
+nodeLinker: hoisted
+
+# Transitive advisory remediation. These are a snapshot, not a subscription:
+# re-check them whenever `pnpm audit` output changes, and drop an entry once
+# the real dependency has moved past it on its own.
+overrides:
+  'postcss@<8.5.18': '8.5.18'
+  'sharp@<0.35.0': '0.35.0'
+  'fast-uri@<3.1.4': '3.1.4'
+  'brace-expansion@<1.1.17': '1.1.17'
+  'brace-expansion@>=2.0.0 <5.0.8': '5.0.8'
+
+# Dependency lifecycle scripts are blocked by default and `strictDepBuilds`
+# defaults to true, so an unreviewed one FAILS the install rather than warning.
+# Every entry here is a deliberate decision; adding one grants that package
+# arbitrary code execution at install time. `pnpm approve-builds` appends
+# placeholders here when a new dependency asks.
+allowBuilds:
+  # Its postinstall only runs `lefthook install -f`, which our own root
+  # `prepare` script already does. The binary comes from a per-platform
+  # optionalDependency, not from this script — nothing is lost by denying it.
+  lefthook: false

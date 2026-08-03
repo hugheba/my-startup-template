@@ -57,6 +57,7 @@ It will walk you through the brainstorm → PRD → architecture phases.
 | Linting         | ESLint 9 flat config                                           |
 | Formatting      | Prettier 3                                                     |
 | Git hooks       | lefthook + commitlint (conventional commits)                   |
+| Tests           | Vitest (`apps/web` only — see Testing)                         |
 | Python          | Python 3.14 + UV (in `scripts/`)                               |
 
 ## Monorepo conventions
@@ -188,6 +189,17 @@ uv add --dev <package> # add a dev dep
 - **Git hooks** live in [`lefthook.yml`](lefthook.yml) — one file for both the hook definitions and the checks they run. `pnpm install` installs them via the `prepare` script. Jobs there run sequentially on purpose; see the comment at the top of the file before adding `parallel: true`.
 - **Commits** must follow conventional-commit format (`feat(scope):`, `fix(scope):`, `chore:`, `docs:`, `ci:`, `build:`). Enforced by commitlint on `commit-msg`.
 - **VS Code extensions** are kept in lockstep between `.vscode/extensions.json` (recommendations) and `.devcontainer/devcontainer.json` (auto-installed in Codespaces). `pnpm verify:vscode` enforces this in CI.
+
+## Testing
+
+Vitest runs in `apps/web` only — today it is the only workspace with code. `pnpm test` (→ `turbo run test`) is part of the required `Lint + Typecheck + Build + Test` check.
+
+- Tests sit **beside** what they cover: `lib/utils.ts` → `lib/utils.test.ts`. No separate `__tests__/` tree.
+- Import `describe` / `it` / `expect` from `vitest` explicitly. There is no config file, no setup file, and no `globals: true` — zero-config works because `apps/web` is `"type": "module"`.
+- There is deliberately **no jsdom and no @testing-library**. Add them with the first component that has behavior worth asserting, not the first one that renders static markup.
+- To add a runner to another workspace: add `vitest` (exact-pinned, per the section above) and a `"test": "vitest run"` script. `turbo.json` already declares the task — nothing changes there.
+
+**`turbo run test` exits 0 when no workspace defines a `test` script.** It prints `Tasks: 0 successful, 0 total` and the required check goes green having run nothing. That is how this repo shipped a `Test` gate that had never executed a test. If you delete the last `test` script, the gate does not turn red — it goes quiet.
 
 ## Secrets management
 

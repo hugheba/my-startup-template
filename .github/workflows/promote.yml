@@ -27,6 +27,11 @@ jobs:
   plan:
     name: Plan promotion to ${{ inputs.target }}
     runs-on: ubuntu-latest
+    # Read-only. This job resolves refs and writes a summary; it must never be
+    # able to move a tracking branch. The write lives on `apply` alone, behind
+    # the target environment's required reviewers.
+    permissions:
+      contents: read
     outputs:
       source_branch: ${{ steps.refs.outputs.source_branch }}
       target_branch: ${{ steps.refs.outputs.target_branch }}

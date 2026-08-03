@@ -5,6 +5,14 @@ on:
   push:
     branches: [main]
 
+# Every job here only reads the repo — checkout, install, build, boot. Stated
+# explicitly rather than inherited: the repository default is a settings toggle,
+# so a workflow with no block silently gains write access the moment someone
+# flips it. A job that needs more grants itself more, next to the step that
+# needs it.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

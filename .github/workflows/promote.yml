@@ -33,7 +33,7 @@ jobs:
       source_sha: ${{ steps.refs.outputs.source_sha }}
       target_sha: ${{ steps.refs.outputs.target_sha }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
 
       - name: Resolve source/target refs
@@ -119,7 +119,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { fetch-depth: 0 }
 
       # Only the source ref is needed here: the re-verify step below reads it,

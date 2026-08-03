@@ -17,6 +17,16 @@ on:
 permissions:
   contents: read
 
+# Every checkout below also sets `persist-credentials: false`. Checkout
+# otherwise writes this job's GITHUB_TOKEN into .git/config as an
+# http.extraheader, and these jobs run third-party actions and PR-authored code
+# against that workspace while holding the extra scopes granted below.
+# `zap-baseline` is the sharp case: it chmods the entire workspace to 777 and
+# then runs both the ZAP action and the PR's own built app. No job here talks to
+# the remote after checkout — `gitleaks git` does walk commit history, but it
+# reads the local clone that `fetch-depth: 0` already fetched — so none of them
+# needs the credential.
+
 jobs:
   zap-baseline:
     name: OWASP ZAP Baseline Scan
@@ -28,6 +38,7 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
       - run: corepack enable
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
@@ -125,6 +136,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
       - run: corepack enable
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
@@ -177,6 +189,7 @@ jobs:
       security-events: write # analyze uploads the SARIF results
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
       # CodeQL code scanning requires GitHub Advanced Security ("Code Security")
       # to be enabled, which is a paid add-on on private repos and is disabled
       # by default. When disabled, only the upload in `analyze` fails with "Code
@@ -208,6 +221,7 @@ jobs:
           # `gitleaks git` walks commits, not just the worktree — a shallow
           # clone would silently scan almost nothing and always pass.
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Run gitleaks
         # Pinned by digest, not tag: a tag is mutable, and this is the job whose

@@ -13,6 +13,13 @@ on:
 permissions:
   contents: read
 
+# Every checkout below sets `persist-credentials: false`. Checkout otherwise
+# leaves this job's GITHUB_TOKEN in .git/config as an http.extraheader, and
+# every job in this file then runs code FROM THE PR under test — install
+# lifecycle scripts, turbo tasks, the app itself. That is PR-controlled code
+# with a readable credential sitting in the workspace it can read. Nothing here
+# performs a git operation after checkout, so nothing needs it to persist.
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -30,6 +37,7 @@ jobs:
     # and cheaply before the heavier job below.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24 }
       - run: node scripts/verify-vscode-extensions.mjs
@@ -44,6 +52,7 @@ jobs:
     # should not accumulate unrelated responsibilities.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24 }
       - run: node scripts/verify-exact-deps.mjs
@@ -76,7 +85,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with: { fetch-depth: 2 }
+        with: { fetch-depth: 2, persist-credentials: false }
 
       - name: Enable Corepack (reads packageManager from package.json)
         run: corepack enable

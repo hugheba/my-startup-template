@@ -6,18 +6,18 @@
     },
     "playwright": {
       "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest"]
+      "args": ["-y", "@playwright/mcp@0.0.78"]
     },
     "shadcn": {
       "command": "npx",
-      "args": ["-y", "shadcn@latest", "mcp"]
+      "args": ["-y", "shadcn@4.16.1", "mcp"]
     },
     "supabase": {
       "_comment": "Rejected by default via disabledMcpjsonServers in .claude/settings.json. Enable when BMAD picks Supabase as the DB: drop it from that list and set SUPABASE_ACCESS_TOKEN and SUPABASE_PROJECT_REF.",
       "command": "npx",
       "args": [
         "-y",
-        "@supabase/mcp-server-supabase@latest",
+        "@supabase/mcp-server-supabase@0.9.0",
         "--project-ref",
         "${SUPABASE_PROJECT_REF}"
       ],

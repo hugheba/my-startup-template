@@ -101,7 +101,7 @@ Anything the OS must provide — `build-essential`, `zlib1g-dev` (GraalVM `nativ
 
 **Every dependency that feeds a build or ships to users is pinned to an exact version. No `^`, no `~`, no `>=`, no `*`, no `latest`, no floating tags.** A range means two people who run the same install on the same commit can get different bytes, and "it broke and nothing changed" becomes unanswerable. Two surfaces are exempt by policy — they are listed at the end of this section.
 
-This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including the `overrides` values in `pnpm-workspace.yaml` — and on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA.
+This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including the `overrides` values in `pnpm-workspace.yaml` and the `npx` invocations in `.mcp.json` — and on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA.
 
 When adding a dependency:
 
@@ -119,6 +119,7 @@ Where the rule applies today:
 | workspace `package.json` deps        | exact versions + `pnpm verify:deps` gate                   |
 | `overrides` (`pnpm-workspace.yaml`)  | exact versions (the key may be a range — it is a selector) |
 | `npx` / `dlx` inside a script        | exact versions + `pnpm verify:deps` gate                   |
+| MCP servers in `.mcp.json`           | exact versions + `pnpm verify:deps` gate                   |
 | toolchain (Node, Python, GraalVM, …) | `mise.toml` exact versions + `mise.lock` checksums         |
 | `.nvmrc` / `scripts/.python-version` | exact, kept in lockstep with `mise.toml`                   |
 | devcontainer OS packages             | apt version pins in `.devcontainer/Dockerfile`             |

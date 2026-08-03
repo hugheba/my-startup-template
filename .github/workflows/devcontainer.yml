@@ -3,9 +3,11 @@ name: Devcontainer image
 # Ported from the reference GitLab `build-devcontainer-image` job.
 #
 # Two modes, one job:
-#   - pull request → BUILD ONLY. Catches a broken Dockerfile (a superseded apt
-#     pin, a rotated release asset, a stale SHA256) before it merges and breaks
-#     every contributor's rebuild.
+#   - pull request → BUILD AND BOOT, no push. Catches a broken Dockerfile (a
+#     superseded apt pin, a rotated release asset, a stale SHA256) before it
+#     merges and breaks every contributor's rebuild — then starts the image and
+#     runs its lifecycle phases, because an image that builds is not the same
+#     as an image that works.
 #   - push to main touching the devcontainer → build AND push to GHCR, tagged
 #     with the commit SHA and `latest`.
 #

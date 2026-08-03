@@ -21,11 +21,11 @@ permissions:
 # otherwise writes this job's GITHUB_TOKEN into .git/config as an
 # http.extraheader, and these jobs run third-party actions and PR-authored code
 # against that workspace while holding the extra scopes granted below.
-# `zap-baseline` is the sharp case: it chmods the entire workspace to 777 and
-# then runs both the ZAP action and the PR's own built app. No job here talks to
-# the remote after checkout — `gitleaks git` does walk commit history, but it
-# reads the local clone that `fetch-depth: 0` already fetched — so none of them
-# needs the credential.
+# `zap-baseline` is the sharp case: the ZAP action makes the workspace root
+# world-writable, and the job runs both that action and the PR's own built app
+# against it. No job here talks to the remote after checkout — `gitleaks git`
+# does walk commit history, but it reads the local clone that `fetch-depth: 0`
+# already fetched — so none of them needs the credential.
 
 jobs:
   zap-baseline:
@@ -84,9 +84,22 @@ jobs:
         env:
           NEXT_PUBLIC_APP_URL: http://localhost:3000
 
-      - name: Fix workspace permissions for ZAP
-        run: chmod -R 777 ${{ github.workspace }} || true
-
+      # There is deliberately no chmod step here. `chmod -R 777
+      # ${{ github.workspace }} || true` used to run at this point so ZAP —
+      # uid 1000 inside its container, against a workspace the runner owns as
+      # uid 1001 — could write report_html.html and report_json.json into the
+      # bind-mounted workspace root. It was wrong twice over. The recursion
+      # world-wrote every file in the checkout, `.git` included, to obtain two
+      # files at the root; and the action already does this itself, one line
+      # before it starts the container:
+      #
+      #   // Allow writing files from the Docker container.
+      #   await exec.exec(`chmod a+w ${workspace}`);   <- action-baseline index.js
+      #
+      # unconditionally, on GITHUB_WORKSPACE, which it then mounts as
+      # `-v $GITHUB_WORKSPACE:/zap/wrk/:rw`. If ZAP ever cannot write its
+      # report, that is a mount or action-version problem — do not reintroduce
+      # a chmod here, least of all a recursive one.
       - name: Run ZAP Baseline Scan
         uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
         with:
@@ -106,8 +119,14 @@ jobs:
             report_json.json
           retention-days: 30
 
+      # Same-repo PRs only. A `pull_request` run from a fork gets a read-only
+      # GITHUB_TOKEN regardless of what `permissions:` grants above, so this
+      # step cannot post and would fail — turning an outside contributor's first
+      # PR red for a reason that belongs to the template, not their change. The
+      # scan still runs for forks and the full report is uploaded as an artifact
+      # above, which is where a fork contributor reads it.
       - name: Comment ZAP results on PR
-        if: github.event_name == 'pull_request'
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |

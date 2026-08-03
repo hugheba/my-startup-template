@@ -7,16 +7,25 @@ on:
     - cron: '0 2 * * 1'
   workflow_dispatch:
 
+# Read-only by default; each job grants itself the one extra scope it needs.
+# This used to be the union of all four jobs' needs, applied to all four —
+# which handed `security-events: write` and `pull-requests: write` to the
+# gitleaks and audit jobs that never touch either. Every job in this file runs
+# third-party code (the ZAP action, the CodeQL action, the gitleaks image)
+# against a checkout while holding this token, so the union is the one shape to
+# avoid here.
 permissions:
-  actions: read # CodeQL init reads workflow-run metadata; required on private repos
   contents: read
-  security-events: write
-  pull-requests: write
 
 jobs:
   zap-baseline:
     name: OWASP ZAP Baseline Scan
     runs-on: ubuntu-latest
+    # For the PR comment at the end of this job. `allow_issue_writing: false`
+    # keeps the ZAP action itself from filing issues, so no `issues` scope.
+    permissions:
+      contents: read
+      pull-requests: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: corepack enable
@@ -162,6 +171,10 @@ jobs:
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
+    permissions:
+      actions: read # init reads workflow-run metadata; required on private repos
+      contents: read
+      security-events: write # analyze uploads the SARIF results
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # CodeQL code scanning requires GitHub Advanced Security ("Code Security")

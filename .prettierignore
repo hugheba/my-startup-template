@@ -17,6 +17,7 @@ scripts/.pytest_cache
 # would fight the generator on every run.
 _bmad
 _bmad-output
+docs/bmad-output
 
 # Rewritten by Next.js on every build — formatting it means it shows as
 # modified after each `next build`.

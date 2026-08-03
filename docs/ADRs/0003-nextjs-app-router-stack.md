@@ -21,7 +21,7 @@ It also needs to be deployable to both Vercel and AWS Amplify (see [ADR-0013](00
 
 App Router rather than Pages Router: it is where the framework's development is going, and starting on Pages Router means an eventual migration for a template that has no legacy to protect.
 
-shadcn/ui rather than a component library dependency: shadcn copies source into `apps/web/components/ui/` rather than installing a package. The components become ours — editable, un-versioned, with no upgrade treadmill and no wrapper layer to fight when a design diverges from the library's defaults.
+shadcn/ui rather than a component library dependency: shadcn copies source into `apps/web/components/ui/` rather than installing a package. The components become ours — editable, unversioned, with no upgrade treadmill and no wrapper layer to fight when a design diverges from the library's defaults.
 
 ## Consequences
 

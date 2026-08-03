@@ -99,9 +99,9 @@ Anything the OS must provide — `build-essential`, `zlib1g-dev` (GraalVM `nativ
 
 ## Dependency pinning — MANDATORY
 
-**Every dependency that feeds a build or ships to users is pinned to an exact version. No `^`, no `~`, no `>=`, no `*`, no `latest`, no floating tags.** A range means two people who run the same install on the same commit can get different bytes, and "it broke and nothing changed" becomes unanswerable. Three surfaces are exempt by policy — they are listed at the end of this section.
+**Every dependency that feeds a build or ships to users is pinned to an exact version. No `^`, no `~`, no `>=`, no `*`, no `latest`, no floating tags.** A range means two people who run the same install on the same commit can get different bytes, and "it broke and nothing changed" becomes unanswerable. Two surfaces are exempt by policy — they are listed at the end of this section.
 
-This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json`, including `pnpm.overrides` values.
+This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including `pnpm.overrides` values — and on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA.
 
 When adding a dependency:
 
@@ -122,14 +122,18 @@ Where the rule applies today:
 | toolchain (Node, Python, GraalVM, …) | `mise.toml` exact versions + `mise.lock` checksums         |
 | `.nvmrc` / `scripts/.python-version` | exact, kept in lockstep with `mise.toml`                   |
 | devcontainer OS packages             | apt version pins in `.devcontainer/Dockerfile`             |
+| GitHub Actions `uses:` refs          | 40-char commit SHA + `pnpm verify:deps` gate               |
 | the gitleaks scanner image           | image digest (`@sha256:…`), not a tag                      |
 
 `pnpm.overrides` sits in `package.json` because that is where pnpm 9 reads it. **pnpm 10 does not** — it reads `overrides` from `pnpm-workspace.yaml` and ignores the `package.json` block with nothing louder than a warning. Move the block in the same commit that bumps `packageManager` to 10. Doing it afterwards silently reopens every advisory the overrides suppress, and the only signal is a warning that looks like ordinary pnpm noise.
 
-Three deliberate exemptions — these are policy, not oversights, so do not "fix" them:
+**GitHub Actions used to be exempt from this rule, referenced by major tag. They are not anymore.** The old reasoning was that nothing an action produces ships to users. That was the wrong question: every action in these workflows executes arbitrary third-party code inside a checkout of this repo, holding a token. `@v4` is a tag, and a tag is a pointer the owner can move at any time — which is precisely the ref shape the `tj-actions/changed-files` compromise targeted, repointing tags at a malicious commit that dumped runner secrets into build logs. A 40-hex commit SHA is the only ref GitHub cannot repoint.
+
+The stated cost was unreadable diffs, and that part was real — so every pin keeps its version as a trailing comment (`@3d3c42e… # v7.0.1`). Dependabot reads that comment: bumps still arrive as PRs and still say which version you are moving to. The gitleaks scanner image was already digest-pinned on this reasoning; it is now the rule rather than the exception.
+
+Two deliberate exemptions — these are policy, not oversights, so do not "fix" them:
 
 - **`engines`** (`node`, `pnpm`) stays a range. It declares _compatibility_, not what gets installed — pinning it exactly would reject a contributor on 24.18.0 for no reason. The installed version is pinned by `mise.toml`.
-- **GitHub Actions** are referenced by major tag (`actions/checkout@v4`). Nothing they produce ships to users, Dependabot keeps them current, and SHA pins make workflow diffs unreadable for the benefit. The one exception inside CI is the **gitleaks scanner image**, which _is_ digest-pinned — a job whose entire purpose is trusting what it runs should not run a mutable tag.
 - **VS Code extensions** (`.vscode/extensions.json`, `.devcontainer/devcontainer.json`) carry no version at all — they are marketplace IDs, and the marketplace always installs latest. They are editor conveniences, not build inputs. What matters there is that the two lists agree, which `pnpm verify:vscode` enforces in CI.
 
 `peerDependencies` are pinned exactly too, which is unusual — normally a peer range is what makes a package composable. It is correct here only because every `packages/*` is `private: true` and consumed solely via `workspace:*`, so exact peers enforce version lockstep across the monorepo. **If you ever publish one of these packages to npm, widen its peer ranges first.**
@@ -261,9 +265,9 @@ git push origin main:refs/heads/deploy/stage main:refs/heads/deploy/prod
 
 ## Security
 
-- **CI** runs OWASP ZAP baseline DAST, Snyk dependency scan, `pnpm audit`, and CodeQL on every PR (see `.github/workflows/security.yml`). Those four are advisory.
+- **CI** runs OWASP ZAP baseline DAST, `pnpm audit`, and CodeQL on every PR (see `.github/workflows/security.yml`). Those three are advisory — they report findings to the run summary and never fail the build, because a freshly-published advisory with no patch available should not block every PR in a template other people clone. `gitleaks` is the one blocking security job: a committed secret is already leaked and cannot be un-leaked by merging more slowly. (A Snyk step used to run here. It referenced `snyk/actions/node@master` — a moving branch, not even a tag — needed a `SNYK_TOKEN` this repo does not set, and was `continue-on-error`, so it was third-party code with repo access producing nothing. It was removed rather than pinned.)
 - **gitleaks** scans the full commit history on every PR and **blocks the merge** on a finding. `secretlint` (via lefthook) only sees the diff you are about to commit; gitleaks catches a secret introduced in an earlier commit on the branch, and covers the credential types secretlint's preset misses (AWS keys).
-- **Dependabot** opens PRs for npm, GitHub Actions, devcontainers, and pip updates daily.
+- **Dependabot** opens PRs for npm, GitHub Actions, devcontainers, and pip updates daily, and alerts on transitive advisories in `pnpm-lock.yaml` (repo → Security → Dependabot alerts). Those alerts are the authoritative watcher here — `pnpm audit` in CI reports the same database but does not gate. **The blind spot:** Dependabot cannot auto-fix an advisory suppressed through `pnpm.overrides`, because an override is not a declared dependency — it detects and alerts, but opens no PR. Those need bumping by hand, and an override left at a stale range keeps the alert open while looking fixed.
 - **GitHub Environments** gate `stage` and `prod` promotions behind required reviewers.
 - **Every binary the dev container downloads is version-pinned and SHA256-verified** (`.devcontainer/Dockerfile`). A hash mismatch fails the build rather than silently installing different bytes. When bumping a version, refresh its hash in the same commit.
 

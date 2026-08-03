@@ -63,6 +63,50 @@ for (const [input, want] of DLX_CASES) {
   }
 }
 
+// Actions are dependencies too, and the loosest ones in the repo: `uses: foo/bar@v4`
+// re-resolves on every run to whatever that tag points at right now, and a tag is
+// mutable — the owner can move it, delete it, or lose the account. This gate only
+// ever read package.json, so the exact-pinning directive stopped at the repo
+// boundary while third-party code ran with write access to the checkout. A 40-hex
+// commit SHA is the only ref GitHub cannot repoint.
+//
+// Local actions (`./...`) are skipped: they are this repo's own files at this
+// repo's own commit, already pinned by the checkout that fetched them.
+// Case-insensitive on purpose: git parses object IDs in either case and GitHub
+// resolves an uppercase ref (normalizing to lowercase), so a hand-pasted
+// uppercase SHA is a valid pin. Rejecting it would fail with "must be a
+// 40-character commit SHA" against something that already is one.
+const SHA = /^[0-9a-f]{40}$/i;
+const USES = /^\s*(?:-\s+)?uses:\s+['"]?([^'"\s]+)/;
+
+// Same reasoning as DLX_CASES: a pattern that quietly stops matching reports zero
+// violations, which is indistinguishable from a clean repo. Each `null` is a
+// false-positive guard; each pair is a shape that must keep matching.
+const USES_CASES = [
+  [
+    `      - uses: actions/checkout@${'a'.repeat(40)} # v7.0.1`,
+    `actions/checkout@${'a'.repeat(40)}`,
+  ],
+  ['        uses: snyk/actions/node@master', 'snyk/actions/node@master'],
+  ['      - uses: "docker/login-action@v4"', 'docker/login-action@v4'],
+  ['      - uses: ./.github/actions/setup', './.github/actions/setup'],
+  ['        run: echo uses: not-an-action@v1', null],
+  ['      # uses: actions/checkout@v7', null],
+];
+
+for (const [input, want] of USES_CASES) {
+  const m = USES.exec(input);
+  const got = m ? m[1] : null;
+  if (got !== want) {
+    console.error(
+      `verify-exact-deps.mjs: the USES pattern is broken — it is no longer detecting what it claims to.\n` +
+        `  input:    ${input}\n  expected: ${want}\n  got:      ${got}\n` +
+        `Fix the pattern before trusting this gate; as-is it can pass while unpinned actions exist.`,
+    );
+    process.exit(2);
+  }
+}
+
 // `exclude` prunes the walk rather than filtering afterwards, which matters:
 // without it the glob descends into every node_modules directory. It receives
 // string paths on the Node versions this repo pins (verified on 24.x), but the
@@ -74,6 +118,7 @@ const skip = (entry) => {
 };
 
 const files = globSync('**/package.json', { exclude: skip });
+const workflows = globSync('.github/workflows/*').filter((f) => /\.ya?ml$/.test(f));
 
 const violations = [];
 
@@ -108,6 +153,19 @@ for (const file of files.sort()) {
   }
 }
 
+for (const file of workflows.sort()) {
+  readFileSync(file, 'utf8')
+    .split('\n')
+    .forEach((line, i) => {
+      const m = USES.exec(line);
+      if (!m || m[1].startsWith('./')) return;
+      // No `@` at all leaves the whole ref, which is never 40-hex — also a violation.
+      if (!SHA.test(m[1].slice(m[1].lastIndexOf('@') + 1))) {
+        violations.push(`${file}:${i + 1}  uses: ${m[1]}`);
+      }
+    });
+}
+
 if (violations.length > 0) {
   console.error('Dependencies must be pinned to an exact version (see AGENTS.md):\n');
   for (const v of violations) console.error('  ' + v);
@@ -115,9 +173,14 @@ if (violations.length > 0) {
     `\n${violations.length} loose specifier(s). For a declared dependency, use the version pnpm` +
       '\nresolved (`pnpm why <pkg>` or the pnpm-lock.yaml importer entry) and re-run `pnpm install`.' +
       '\nFor an `npx`/`dlx` invocation there is nothing installed to inspect — take the version from' +
-      '\n`npm view <pkg> version` and pin it in the script.',
+      '\n`npm view <pkg> version` and pin it in the script.' +
+      '\nFor a workflow `uses:` ref, resolve the tag to the commit it points at with' +
+      '\n`gh api repos/<owner>/<repo>/commits/<tag> --jq .sha` and keep the tag as a trailing' +
+      '\ncomment (`@<sha> # v4.1.2`) — Dependabot reads that comment to bump the pin later.',
   );
   process.exit(1);
 }
 
-console.log(`All dependency specifiers are exact (${files.length} package.json files checked).`);
+console.log(
+  `All dependency specifiers are exact (${files.length} package.json, ${workflows.length} workflow files checked).`,
+);

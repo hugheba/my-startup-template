@@ -18,15 +18,15 @@ jobs:
     name: OWASP ZAP Baseline Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: corepack enable
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
 
       - run: pnpm install --frozen-lockfile
 
       - name: Cache Turborepo
-        uses: actions/cache@v6
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: .turbo
           key: ${{ runner.os }}-turbo-${{ hashFiles('pnpm-lock.yaml', '**/package.json', 'turbo.json', 'tsconfig*.json', '.env.example') }}
@@ -68,7 +68,7 @@ jobs:
         run: chmod -R 777 ${{ github.workspace }} || true
 
       - name: Run ZAP Baseline Scan
-        uses: zaproxy/action-baseline@v0.15.0
+        uses: zaproxy/action-baseline@de8ad967d3548d44ef623df22cf95c3b0baf8b25 # v0.15.0
         with:
           target: 'http://localhost:3000'
           rules_file_name: '.zap/rules.tsv'
@@ -78,7 +78,7 @@ jobs:
 
       - name: Upload ZAP scan report
         if: always()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: zap-scan-report
           path: |
@@ -88,7 +88,7 @@ jobs:
 
       - name: Comment ZAP results on PR
         if: github.event_name == 'pull_request'
-        uses: actions/github-script@v9
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
             const fs = require('fs');
@@ -115,28 +115,55 @@ jobs:
     name: Dependency Security Scan
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - run: corepack enable
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with: { node-version: 24, cache: pnpm }
       - run: pnpm install --frozen-lockfile
 
-      - name: Snyk scan (continue-on-error — needs SNYK_TOKEN)
-        uses: snyk/actions/node@master
-        continue-on-error: true
-        env:
-          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
-        with:
-          args: --severity-threshold=high --all-projects
+      # The Snyk step that used to run here was removed. It referenced
+      # `snyk/actions/node@master` — a moving branch, not a tag, so every run
+      # executed whatever that branch happened to contain at that moment. It
+      # also required SNYK_TOKEN, which this repo does not set, so it was
+      # `continue-on-error: true` and produced nothing on every run. It was
+      # third-party code with repo access, zero output, and no version pin.
+      # Dependabot alerts and the audit below already cover this ground.
 
-      - name: pnpm audit
-        run: pnpm audit --audit-level=high || true
+      # Advisory, not blocking — deliberately. GitHub's Dependabot alerts
+      # (Security tab) are the authoritative watcher here and read the same
+      # advisory database; they flagged brace-expansion GHSA-mh99-v99m-4gvg when
+      # its range widened to <1.1.17. Failing the build instead would mean a
+      # freshly-published advisory with no patch available blocks every PR — in
+      # a template repo other people clone, that is someone else's broken CI.
+      #
+      # The previous `|| true` was the actual bug: it reported nothing at all,
+      # so findings scrolled past in a log nobody opens and this check stayed
+      # green through a live high-severity advisory. Writing to the step summary
+      # keeps it non-blocking while putting findings on the run page.
+      - name: pnpm audit (advisory)
+        run: |
+          if pnpm audit --audit-level=high > audit.txt 2>&1; then
+            echo '### ✅ `pnpm audit`: no high-severity advisories' >> "$GITHUB_STEP_SUMMARY"
+          else
+            {
+              echo '### ⚠️ `pnpm audit` found high-severity advisories'
+              echo
+              echo 'Advisory only — this step never fails the build. Transitive fixes'
+              echo 'go in `pnpm.overrides` (package.json), a surface Dependabot alerts'
+              echo 'on but cannot auto-update. See AGENTS.md > Dependencies.'
+              echo
+              echo '```text'
+              cat audit.txt
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          cat audit.txt
 
   codeql:
     name: CodeQL Analysis
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       # CodeQL code scanning requires GitHub Advanced Security ("Code Security")
       # to be enabled, which is a paid add-on on private repos and is disabled
       # by default. When disabled, only the upload in `analyze` fails with "Code
@@ -146,10 +173,10 @@ jobs:
       # bad checkout) are still caught. Once Code Security is enabled the steps
       # pass and alerts upload normally (findings are reported via SARIF, not
       # via step failure).
-      - uses: github/codeql-action/init@v4
+      - uses: github/codeql-action/init@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
         with:
           languages: javascript-typescript
-      - uses: github/codeql-action/analyze@v4
+      - uses: github/codeql-action/analyze@d1ba80a13dd99fba24a470575428917156a28b43 # v4.37.5
         continue-on-error: true
         with:
           category: '/language:javascript-typescript'
@@ -163,7 +190,7 @@ jobs:
     # on the branch, or one added by a tool. gitleaks scans the whole history.
     # It also covers what secretlint's preset misses, notably AWS keys.
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # `gitleaks git` walks commits, not just the worktree — a shallow
           # clone would silently scan almost nothing and always pass.

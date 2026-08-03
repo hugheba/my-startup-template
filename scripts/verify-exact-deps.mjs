@@ -72,7 +72,11 @@ for (const [input, want] of DLX_CASES) {
 //
 // Local actions (`./...`) are skipped: they are this repo's own files at this
 // repo's own commit, already pinned by the checkout that fetched them.
-const SHA = /^[0-9a-f]{40}$/;
+// Case-insensitive on purpose: git parses object IDs in either case and GitHub
+// resolves an uppercase ref (normalizing to lowercase), so a hand-pasted
+// uppercase SHA is a valid pin. Rejecting it would fail with "must be a
+// 40-character commit SHA" against something that already is one.
+const SHA = /^[0-9a-f]{40}$/i;
 const USES = /^\s*(?:-\s+)?uses:\s+['"]?([^'"\s]+)/;
 
 // Same reasoning as DLX_CASES: a pattern that quietly stops matching reports zero

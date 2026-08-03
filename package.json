@@ -5,10 +5,11 @@
   "description": "Opinionated Turborepo template for BMAD-driven Next.js startups",
   "engines": {
     "node": ">=24 <25",
-    "pnpm": ">=9"
+    "pnpm": ">=11"
   },
-  "packageManager": "pnpm@9.15.0",
+  "packageManager": "pnpm@11.20.0",
   "scripts": {
+    "preinstall": "node -e \"if(!(process.env.npm_config_user_agent||'').startsWith('pnpm/')){console.error('\\n  This repo uses pnpm, not npm or yarn.\\n  Run:  corepack enable && pnpm install\\n');process.exit(1)}\"",
     "dev": "turbo run dev",
     "build": "turbo run build",
     "lint": "turbo run lint",
@@ -31,7 +32,9 @@
   "devDependencies": {
     "@commitlint/cli": "21.2.1",
     "@commitlint/config-conventional": "21.2.0",
+    "@my-startup-template/eslint-config": "workspace:*",
     "@my-startup-template/prettier-config": "workspace:*",
+    "@next/eslint-plugin-next": "16.2.12",
     "@secretlint/secretlint-rule-preset-recommend": "13.0.4",
     "eslint": "9.39.5",
     "lefthook": "2.1.10",
@@ -43,14 +46,5 @@
     "turbo": "2.10.8",
     "typescript": "6.0.3"
   },
-  "prettier": "@my-startup-template/prettier-config",
-  "pnpm": {
-    "overrides": {
-      "postcss@<8.5.18": "8.5.18",
-      "sharp@<0.35.0": "0.35.0",
-      "fast-uri@<3.1.4": "3.1.4",
-      "brace-expansion@<1.1.17": "1.1.17",
-      "brace-expansion@>=2.0.0 <5.0.8": "5.0.8"
-    }
-  }
+  "prettier": "@my-startup-template/prettier-config"
 }

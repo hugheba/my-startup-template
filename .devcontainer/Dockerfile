@@ -148,7 +148,7 @@ COPY --chown=vscode:vscode .devcontainer/.env ./.devcontainer/.env
 RUN mise trust && mise install
 
 # pnpm is NOT a mise tool: package.json pins it via `packageManager`
-# (pnpm@9.15.0) and Corepack — shipped with the Node mise installs —
+# (pnpm@11.20.0) and Corepack — shipped with the Node mise installs —
 # materializes exactly that version. A second pin would drift from it.
 RUN corepack enable
 

@@ -149,7 +149,7 @@ jobs:
               echo '### ⚠️ `pnpm audit` found high-severity advisories'
               echo
               echo 'Advisory only — this step never fails the build. Transitive fixes'
-              echo 'go in `pnpm.overrides` (package.json), a surface Dependabot alerts'
+              echo 'go in `overrides` (pnpm-workspace.yaml), a surface Dependabot alerts'
               echo 'on but cannot auto-update. See AGENTS.md > Dependencies.'
               echo
               echo '```text'

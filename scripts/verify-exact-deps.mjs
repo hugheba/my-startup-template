@@ -107,6 +107,65 @@ for (const [input, want] of USES_CASES) {
   }
 }
 
+// pnpm overrides pin transitive dependencies; a range here defeats the point of
+// the override. The KEY may be a range (it is a selector, e.g. "postcss@<8.5.10");
+// only the VALUE it resolves to must be exact.
+//
+// They live in pnpm-workspace.yaml as of pnpm 11 — this gate used to read
+// `pkg.pnpm.overrides`, a field pnpm no longer reads either. Left alone it would
+// have gone on reporting success while checking nothing, which is the exact
+// failure mode that moving the settings was meant to end.
+//
+// A YAML dependency for one flat map is not worth it. Selectors may be quoted
+// and may contain spaces, `@`, `<` and `>=`, but never a colon — so the first
+// colon always separates key from value.
+const unquote = (s) => {
+  const t = s.trim();
+  const q = t[0];
+  if (q === "'" || q === '"') return t.slice(1, t.indexOf(q, 1));
+  return t.split(/\s/)[0]; // bare scalar: stop at whitespace, dropping any trailing comment
+};
+
+const parseOverrides = (yaml) => {
+  const out = {};
+  let inBlock = false;
+  for (const line of yaml.split('\n')) {
+    if (!line.trim() || /^\s*#/.test(line)) continue;
+    if (/^overrides:\s*$/.test(line)) {
+      inBlock = true;
+      continue;
+    }
+    if (!inBlock) continue;
+    if (!/^\s/.test(line)) break; // next top-level key ends the block
+    const i = line.indexOf(':');
+    if (i !== -1) out[unquote(line.slice(0, i))] = unquote(line.slice(i + 1));
+  }
+  return out;
+};
+
+// Same reasoning as DLX_CASES and USES_CASES: a parser that quietly stops
+// matching yields zero overrides, which is indistinguishable from having none.
+const OVERRIDES_CASES = [
+  ['overrides:\n  a: 1.0.0\n', { a: '1.0.0' }],
+  ["overrides:\n  'p@<8.5.18': '8.5.18'\n", { 'p@<8.5.18': '8.5.18' }],
+  ["overrides:\n  'b@>=2.0.0 <5.0.8': '5.0.8'\n", { 'b@>=2.0.0 <5.0.8': '5.0.8' }],
+  ['overrides:\n  a: 1.0.0 # trailing comment\n', { a: '1.0.0' }],
+  ['overrides:\n  # comment\n  a: ^1.0.0\n\nnodeLinker: hoisted\n', { a: '^1.0.0' }],
+  ['nodeLinker: hoisted\n', {}],
+];
+
+for (const [input, want] of OVERRIDES_CASES) {
+  const got = parseOverrides(input);
+  if (JSON.stringify(got) !== JSON.stringify(want)) {
+    console.error(
+      `verify-exact-deps.mjs: the overrides parser is broken — it is no longer reading what it claims to.\n` +
+        `  input:    ${JSON.stringify(input)}\n  expected: ${JSON.stringify(want)}\n  got:      ${JSON.stringify(got)}\n` +
+        `Fix it before trusting this gate; as-is it can pass while loose overrides exist.`,
+    );
+    process.exit(2);
+  }
+}
+
 // `exclude` prunes the walk rather than filtering afterwards, which matters:
 // without it the glob descends into every node_modules directory. It receives
 // string paths on the Node versions this repo pins (verified on 24.x), but the
@@ -137,14 +196,6 @@ for (const file of files.sort()) {
     }
   }
 
-  // pnpm overrides pin transitive dependencies; a range here defeats the point
-  // of the override. The KEY may be a range (it is a selector, e.g.
-  // "postcss@<8.5.10"); only the VALUE it resolves to must be exact.
-  for (const [selector, spec] of Object.entries(pkg.pnpm?.overrides ?? {})) {
-    if (typeof spec !== 'string' || PROTOCOL.test(spec)) continue;
-    if (!EXACT.test(spec)) violations.push(`${file}  pnpm.overrides["${selector}"] = "${spec}"`);
-  }
-
   for (const [name, script] of Object.entries(pkg.scripts ?? {})) {
     if (typeof script !== 'string') continue;
     for (const [, tool, spec] of script.matchAll(DLX)) {
@@ -166,6 +217,25 @@ for (const file of workflows.sort()) {
     });
 }
 
+const WORKSPACE = 'pnpm-workspace.yaml';
+const workspaceYaml = readFileSync(WORKSPACE, 'utf8');
+const overrides = parseOverrides(workspaceYaml);
+
+// The parser returning nothing is indistinguishable from there being nothing to
+// return, so cross-check the one thing that can tell them apart.
+if (/^overrides:\s*$/m.test(workspaceYaml) && Object.keys(overrides).length === 0) {
+  console.error(
+    `verify-exact-deps.mjs: ${WORKSPACE} declares an \`overrides:\` block but none were parsed.\n` +
+      'Refusing to report success on overrides this gate did not actually read.',
+  );
+  process.exit(2);
+}
+
+for (const [selector, spec] of Object.entries(overrides)) {
+  if (PROTOCOL.test(spec)) continue;
+  if (!EXACT.test(spec)) violations.push(`${WORKSPACE}  overrides["${selector}"] = "${spec}"`);
+}
+
 if (violations.length > 0) {
   console.error('Dependencies must be pinned to an exact version (see AGENTS.md):\n');
   for (const v of violations) console.error('  ' + v);
@@ -182,5 +252,6 @@ if (violations.length > 0) {
 }
 
 console.log(
-  `All dependency specifiers are exact (${files.length} package.json, ${workflows.length} workflow files checked).`,
+  `All dependency specifiers are exact (${files.length} package.json, ${workflows.length} workflow files, ` +
+    `${Object.keys(overrides).length} pnpm overrides checked).`,
 );

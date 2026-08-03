@@ -46,7 +46,7 @@ It will walk you through the brainstorm → PRD → architecture phases.
 | --------------- | -------------------------------------------------------------- |
 | Toolchain       | mise (`mise.toml` + `mise.lock`) — owns every language and CLI |
 | Runtime         | Node 24 LTS                                                    |
-| Package manager | pnpm 9.15.0 (Corepack — auto-installed)                        |
+| Package manager | pnpm 11.20.0 (Corepack — auto-installed)                       |
 | JVM             | GraalVM CE 21 incl. `native-image`                             |
 | Monorepo        | Turborepo                                                      |
 | Framework       | Next.js 16 (App Router, RSC)                                   |
@@ -101,7 +101,7 @@ Anything the OS must provide — `build-essential`, `zlib1g-dev` (GraalVM `nativ
 
 **Every dependency that feeds a build or ships to users is pinned to an exact version. No `^`, no `~`, no `>=`, no `*`, no `latest`, no floating tags.** A range means two people who run the same install on the same commit can get different bytes, and "it broke and nothing changed" becomes unanswerable. Two surfaces are exempt by policy — they are listed at the end of this section.
 
-This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including `pnpm.overrides` values — and on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA.
+This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including the `overrides` values in `pnpm-workspace.yaml` — and on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA.
 
 When adding a dependency:
 
@@ -117,7 +117,7 @@ Where the rule applies today:
 | Surface                              | Pinned by                                                  |
 | ------------------------------------ | ---------------------------------------------------------- |
 | workspace `package.json` deps        | exact versions + `pnpm verify:deps` gate                   |
-| `pnpm.overrides`                     | exact versions (the key may be a range — it is a selector) |
+| `overrides` (`pnpm-workspace.yaml`)  | exact versions (the key may be a range — it is a selector) |
 | `npx` / `dlx` inside a script        | exact versions + `pnpm verify:deps` gate                   |
 | toolchain (Node, Python, GraalVM, …) | `mise.toml` exact versions + `mise.lock` checksums         |
 | `.nvmrc` / `scripts/.python-version` | exact, kept in lockstep with `mise.toml`                   |
@@ -125,7 +125,11 @@ Where the rule applies today:
 | GitHub Actions `uses:` refs          | 40-char commit SHA + `pnpm verify:deps` gate               |
 | the gitleaks scanner image           | image digest (`@sha256:…`), not a tag                      |
 
-`pnpm.overrides` sits in `package.json` because that is where pnpm 9 reads it. **pnpm 10 does not** — it reads `overrides` from `pnpm-workspace.yaml` and ignores the `package.json` block with nothing louder than a warning. Move the block in the same commit that bumps `packageManager` to 10. Doing it afterwards silently reopens every advisory the overrides suppress, and the only signal is a warning that looks like ordinary pnpm noise.
+**Every pnpm setting lives in `pnpm-workspace.yaml`.** As of pnpm 11 the `pnpm` field in `package.json` is not read at all, and `.npmrc` is restricted to auth and registry credentials. The two failure modes are not equal, and the difference matters: a leftover `pnpm` field in `package.json` produces a warning naming the ignored keys, but a setting left in `.npmrc` is dropped in **complete silence** — `node-linker=isolated` there changes nothing and says nothing. That silent case is the dangerous one, because `.npmrc` is where `nodeLinker: hoisted` used to live and that setting is load-bearing for AWS Amplify SSR deploys. `.npmrc` is therefore kept as an empty file whose only content is a comment saying where settings go.
+
+**Dependency install scripts are denied by default.** pnpm blocks lifecycle scripts for dependencies, and `strictDepBuilds` defaults to on, so an unreviewed one _fails_ the install rather than warning. Grants live in `allowBuilds` in `pnpm-workspace.yaml`, and each grant hands that package arbitrary code execution at install time — check whether it genuinely needs the script before adding one. Exactly one of 591 packages currently asks, and it is denied: lefthook's postinstall only re-runs `lefthook install`, which the root `prepare` script already does, and its binary comes from a per-platform `optionalDependency` rather than that script.
+
+**`npm install` and `yarn install` are blocked** by a root `preinstall` guard that checks `npm_config_user_agent`. Corepack can shim `npm` to do this, but only when Corepack owns the shim — under a `mise`-managed Node it does not, so the guard is in `package.json` where it holds regardless of how Node was installed.
 
 **GitHub Actions used to be exempt from this rule, referenced by major tag. They are not anymore.** The old reasoning was that nothing an action produces ships to users. That was the wrong question: every action in these workflows executes arbitrary third-party code inside a checkout of this repo, holding a token. `@v4` is a tag, and a tag is a pointer the owner can move at any time — which is precisely the ref shape the `tj-actions/changed-files` compromise targeted, repointing tags at a malicious commit that dumped runner secrets into build logs. A 40-hex commit SHA is the only ref GitHub cannot repoint.
 

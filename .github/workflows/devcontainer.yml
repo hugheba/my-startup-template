@@ -61,6 +61,14 @@ jobs:
         with:
           # Need the base commit present to diff against it.
           fetch-depth: 0
+          # Checkout otherwise leaves this job's GITHUB_TOKEN in .git/config as
+          # an http.extraheader. The boot step below copies the whole worktree
+          # into the container and then runs lifecycle scripts FROM THE PR under
+          # test — PR-controlled code, which could read the token straight out
+          # of the copied config. Nothing here needs the credential to persist:
+          # the only git operation after this is the local `scope` diff, which
+          # fetch-depth: 0 has already made possible without the network.
+          persist-credentials: false
 
       - name: Does this change affect the devcontainer?
         id: scope

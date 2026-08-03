@@ -3,9 +3,11 @@ name: Devcontainer image
 # Ported from the reference GitLab `build-devcontainer-image` job.
 #
 # Two modes, one job:
-#   - pull request → BUILD ONLY. Catches a broken Dockerfile (a superseded apt
-#     pin, a rotated release asset, a stale SHA256) before it merges and breaks
-#     every contributor's rebuild.
+#   - pull request → BUILD AND BOOT, no push. Catches a broken Dockerfile (a
+#     superseded apt pin, a rotated release asset, a stale SHA256) before it
+#     merges and breaks every contributor's rebuild — then starts the image and
+#     runs its lifecycle phases, because an image that builds is not the same
+#     as an image that works.
 #   - push to main touching the devcontainer → build AND push to GHCR, tagged
 #     with the commit SHA and `latest`.
 #
@@ -59,6 +61,14 @@ jobs:
         with:
           # Need the base commit present to diff against it.
           fetch-depth: 0
+          # Checkout otherwise leaves this job's GITHUB_TOKEN in .git/config as
+          # an http.extraheader. The boot step below copies the whole worktree
+          # into the container and then runs lifecycle scripts FROM THE PR under
+          # test — PR-controlled code, which could read the token straight out
+          # of the copied config. Nothing here needs the credential to persist:
+          # the only git operation after this is the local `scope` diff, which
+          # fetch-depth: 0 has already made possible without the network.
+          persist-credentials: false
 
       - name: Does this change affect the devcontainer?
         id: scope
@@ -167,9 +177,75 @@ jobs:
           # natively from devcontainer.json instead of pulling.
           platforms: linux/amd64
           push: ${{ github.event_name != 'pull_request' }}
+          # Exactly the inverse of `push:`, never both at once. On a pull
+          # request nothing is pushed, so without this the image is built and
+          # immediately discarded — the boot check below needs it in the local
+          # daemon. `load` is a single-platform-only shorthand for the `docker`
+          # exporter, which this build satisfies; pairing it with the registry
+          # exporter in one step is not documented as supported by this action,
+          # and this job is a required check, so it is not the place to find
+          # out. On main the image lands in GHCR and is bootable from there.
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # A successful build proves the Dockerfile compiles. It does not prove the
+      # image WORKS: a mise pin that resolves but cannot run, a shim that never
+      # got created, a postcreate step that exits non-zero — all of those build
+      # green and then fail on every contributor's first boot. So boot it and
+      # run the container's own lifecycle phases against a real copy of the repo.
+      #
+      # No new assertion list is invented here. `devcontainer-phase.sh` is what
+      # devcontainer.json itself calls for both phases, and its header names
+      # this job as the reason `check` mode exists. Whatever a developer's
+      # container does on create and on start is exactly what runs below.
+      #
+      # The repo is copied in rather than bind-mounted. A bind mount is what the
+      # real container uses, but the runner's checkout is owned by uid 1001 and
+      # the image runs as vscode (uid 1000), so `pnpm install` could not write
+      # into it — and chowning the checkout to 1000 breaks actions/checkout's
+      # post step, which still runs as 1001. Copying keeps the workspace path
+      # identical, which is the part that actually matters: `mise trust` is
+      # keyed on the absolute path, and that is the whole reason
+      # 001-mise-trust.sh exists.
+      - name: Boot the image and run its lifecycle phases
+        if: steps.scope.outputs.affected == 'true' && github.event_name == 'pull_request'
+        env:
+          IMAGE_REF: ${{ steps.meta.outputs.image }}:${{ github.sha }}
+          # Must match devcontainer.json's `workspaceFolder` and the bind-mount
+          # target in docker-compose.yml.
+          WORKSPACE: /workspaces/my-startup-template
+        run: |
+          set -euo pipefail
+
+          docker run -d --name boot-check "$IMAGE_REF" sleep infinity
+
+          # `docker cp` writes as root; the phases run as vscode.
+          docker exec -u root boot-check mkdir -p "$(dirname "$WORKSPACE")"
+          docker cp . "boot-check:$WORKSPACE"
+          docker exec -u root boot-check chown -R vscode:vscode "$WORKSPACE"
+
+          # No login shell needed: the Dockerfile puts the mise shims on PATH
+          # via ENV, so `docker exec` inherits them. Both phases, in the order a
+          # real boot runs them. A non-zero exit is an apply failure, and
+          # `pipefail` keeps `tee` from hiding it.
+          docker exec -u vscode -w "$WORKSPACE" boot-check \
+            bash .devcontainer/scripts/devcontainer-phase.sh postcreate 2>&1 | tee boot.log
+          docker exec -u vscode -w "$WORKSPACE" boot-check \
+            bash .devcontainer/scripts/devcontainer-phase.sh poststart 2>&1 | tee -a boot.log
+
+          # The phase runner reports check results but deliberately never lets
+          # them change its own exit code — only apply failures do, so that one
+          # bad assertion cannot block a developer's container from finishing
+          # setup. CI wants both signals, so the check lines are inspected here.
+          # If a step ever proves genuinely flaky in CI rather than broken,
+          # narrow it with DEVCONTAINER_SKIP rather than dropping this gate.
+          if grep -q ': FAIL' boot.log; then
+            echo "::error::Devcontainer health checks reported FAIL"
+            grep ': FAIL' boot.log
+            exit 1
+          fi
 
       - name: Summarize
         run: |
@@ -180,7 +256,8 @@ jobs:
               echo "- No devcontainer inputs changed — image build skipped."
               echo "- The check still reports so it can gate merges to \`main\`."
             elif [ "${{ github.event_name }}" = "pull_request" ]; then
-              echo "- Build-only (pull request) — image not pushed."
+              echo "- Built and booted (pull request) — image not pushed."
+              echo "- Ran \`postcreate\` + \`poststart\` inside the image; see the job log."
             else
               echo "- Pushed \`${{ steps.meta.outputs.image }}:${{ github.sha }}\`"
               echo "- Pushed \`${{ steps.meta.outputs.image }}:latest\`"

@@ -33,15 +33,24 @@ strictPeerDependencies: false
 # https://github.com/aws-amplify/amplify-hosting/blob/main/FAQ.md#using-a-monorepo-framework
 nodeLinker: hoisted
 
-# Transitive advisory remediation. These are a snapshot, not a subscription:
-# re-check them whenever `pnpm audit` output changes, and drop an entry once
-# the real dependency has moved past it on its own.
+# Transitive advisory remediation. These are a snapshot, not a subscription: an
+# advisory range widens over time until a pinned version sits back inside it,
+# which is how four of these five came to be vulnerable while still looking
+# pinned. Dependabot alerts caught three; the fourth surfaced only from running
+# `pnpm audit` by hand, because in CI that step is advisory-only and cannot fail
+# a build. Neither signal is one you get without going to look.
+#
+# When you bump one, MOVE THE SELECTOR TOO. The key is a range, and a stale one
+# matches nothing: `postcss@<8.5.18` had stopped matching 8.5.18-8.5.22, so
+# raising only the value on the right would have left an override that reads as
+# enforcement and applies to nothing. Drop an entry once the real dependency has
+# moved past it on its own.
 overrides:
-  'postcss@<8.5.18': '8.5.18'
+  'postcss@<8.5.25': '8.5.25'
   'sharp@<0.35.0': '0.35.0'
-  'fast-uri@<3.1.4': '3.1.4'
-  'brace-expansion@<1.1.17': '1.1.17'
-  'brace-expansion@>=2.0.0 <5.0.8': '5.0.8'
+  'fast-uri@<3.1.5': '3.1.5'
+  'brace-expansion@<1.1.18': '1.1.18'
+  'brace-expansion@>=2.0.0 <5.0.9': '5.0.9'
 
 # Dependency lifecycle scripts are blocked by default and `strictDepBuilds`
 # defaults to true, so an unreviewed one FAILS the install rather than warning.

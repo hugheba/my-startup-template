@@ -39,8 +39,16 @@ pre-commit:
     # Unlike CI this does NOT pass --redact. A finding here is in your own
     # working tree on your own terminal, and seeing which string tripped is the
     # whole point; CI redacts because its logs are public on a public repo.
+    #
+    # `mise exec --`, not a bare `gitleaks`, because a git hook inherits the
+    # shell you typed `git commit` in — and mise is not necessarily activated
+    # there. Bare would then either find nothing (hook dies on a machine that
+    # never activated mise) or find a brew-installed gitleaks at some other
+    # version, which is the exact "hook and CI are different scanners" failure
+    # this job exists to prevent, in its quietest form. `mise exec` resolves the
+    # pinned version whether or not the shell was set up.
     - name: gitleaks
-      run: gitleaks git --staged --no-banner -v
+      run: mise exec -- gitleaks git --staged --no-banner -v
 
 commit-msg:
   jobs:

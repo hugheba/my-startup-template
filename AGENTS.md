@@ -226,7 +226,7 @@ Vitest runs in `apps/web` only — today it is the only workspace with code. `pn
 
 **Never** put a secret behind a `NEXT_PUBLIC_*` prefix — those vars are inlined into the client bundle at build time and end up shipped to every browser.
 
-**Pre-commit secret scan:** [gitleaks](https://github.com/gitleaks/gitleaks) runs via lefthook as `gitleaks git --staged`. No glob and no file list — `--staged` reads the git index directly, so every staged file is covered including types no formatter touches (`.env`, `.pem`, a test fixture). If you stage a GitHub token, AWS key, Stripe key, npm token, or Slack webhook, the commit is rejected.
+**Pre-commit secret scan:** [gitleaks](https://github.com/gitleaks/gitleaks) runs via lefthook as `mise exec -- gitleaks git --staged` — through mise, because a git hook inherits whatever shell ran `git commit` and a bare `gitleaks` there is either missing or somebody else's version. No glob and no file list — `--staged` reads the git index directly, so every staged file is covered including types no formatter touches (`.env`, `.pem`, a test fixture). If you stage a GitHub token, AWS key, Stripe key, npm token, or Slack webhook, the commit is rejected.
 
 It is the **same binary CI runs**, on the same default ruleset — there is no `.gitleaks.toml`. That is the point: the version pin in `.devcontainer/.env` and the image tag in `.github/workflows/security.yml` must move together, or "it passed locally" stops meaning anything about CI. (This used to be secretlint locally and gitleaks in CI, which made the innermost gate the weakest — secretlint's preset does not flag `AKIA…` AWS keys. See [ADR-0018](docs/ADRs/0018-one-secret-scanner-three-positions.md).)
 

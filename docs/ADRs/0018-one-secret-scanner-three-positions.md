@@ -19,7 +19,7 @@ One scanner — gitleaks — at all three positions, pinned by `GITLEAKS_VERSION
 
 | Position           | Mechanism                              | Scope               | On finding    |
 | ------------------ | -------------------------------------- | ------------------- | ------------- |
-| pre-commit (local) | `gitleaks git --staged`, via lefthook  | the staged index    | blocks commit |
+| pre-commit (local) | `mise exec -- gitleaks git --staged`   | the staged index    | blocks commit |
 | push (server)      | GitHub secret scanning push protection | the pushed commits  | rejects push  |
 | CI (pull request)  | gitleaks, digest-pinned container      | full commit history | blocks merge  |
 
@@ -39,4 +39,6 @@ One scanner — gitleaks — at all three positions, pinned by `GITLEAKS_VERSION
 
 **Two version pins must move together, so a gate enforces it.** gitleaks is the one tool pinned twice — through mise for the hook, as a container digest for CI — and a drifted pair fails _silently_: both sides keep working, just as different scanners, while the hook quietly stops being a statement about CI. Comments cannot catch that, so `scripts/verify-mise-lock.mjs` asserts `GITLEAKS_VERSION` equals the image tag in `security.yml`. Bumping one without the other now fails `pnpm verify:mise`.
 
-**A fresh clone with no mise gets no hook.** The hook calls `gitleaks` from `PATH`, which `mise install` provides. Someone who skips the toolchain loses the innermost layer — but keeps push protection and CI, which are the two that were ever load-bearing.
+**The hook resolves gitleaks through `mise exec`, not `PATH`.** A git hook inherits whatever shell ran `git commit`, and mise is not necessarily activated there — this repo's own shell rc does not activate it. A bare `gitleaks` would then find nothing, or find a brew-installed copy at another version: the same "hook and CI are different scanners" failure this record exists to close, in its quietest form. Going through `mise exec` costs a resolution step per commit and removes the shell from the equation.
+
+**A fresh clone that skips `mise install` still gets no hook**, and that is acceptable — it keeps push protection and CI, which are the two layers that were ever load-bearing.

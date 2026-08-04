@@ -198,5 +198,5 @@ if (tag !== env.GITLEAKS_VERSION) {
 console.log(
   `mise.lock is in sync with ${ENV_FILE} ` +
     `(${declared.size} tools × ${PLATFORMS.length} platforms verified), ` +
-    `and gitleaks v${tag} matches ${SECURITY_WF}.`,
+    `and ${SECURITY_WF} runs gitleaks v${tag} as pinned.`,
 );

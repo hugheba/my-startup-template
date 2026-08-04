@@ -1,6 +1,16 @@
 name: Security Scan
 
 on:
+  # Only the CodeQL job runs on this trigger; the other three carry
+  # `if: github.event_name != 'push'`. Code scanning diffs a PR's alerts against
+  # the default branch's analysis, so with no run on main there is no baseline
+  # to diff against, and nothing closes an alert that the merge actually fixed.
+  # The weekly cron below is otherwise the only thing analysing main, which
+  # leaves both up to 7 days stale. The other three scans are excluded because
+  # on a merge commit they would only repeat what they already reported on the
+  # PR — and ZAP repeats it expensively, by rebuilding and booting the app.
+  push:
+    branches: [main]
   pull_request:
     branches: [main]
   schedule:
@@ -31,6 +41,9 @@ jobs:
   zap-baseline:
     name: OWASP ZAP Baseline Scan
     runs-on: ubuntu-latest
+    # PR, schedule and dispatch only — see the `push` trigger above. This job
+    # also ends in a PR comment, which has no PR to attach to on a merge commit.
+    if: github.event_name != 'push'
     # For the PR comment at the end of this job. `allow_issue_writing: false`
     # keeps the ZAP action itself from filing issues, so no `issues` scope.
     permissions:
@@ -153,6 +166,10 @@ jobs:
   dependency-scan:
     name: Dependency Security Scan
     runs-on: ubuntu-latest
+    # PR, schedule and dispatch only — see the `push` trigger above. The weekly
+    # cron is what catches an advisory published after a PR merged; re-running
+    # on the merge commit reads the same database minutes later.
+    if: github.event_name != 'push'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with: { persist-credentials: false }
@@ -230,6 +247,11 @@ jobs:
   gitleaks:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
+    # PR, schedule and dispatch only — see the `push` trigger above. This one is
+    # the blocking gate, and a merge commit is past the point where blocking
+    # does anything: the secret is already on main. Its job is to stop the merge,
+    # which only the PR run can do. The weekly cron still re-walks full history.
+    if: github.event_name != 'push'
     # BLOCKING, unlike the advisory scans above. The same scanner runs in the
     # pre-commit hook (`mise exec -- gitleaks git --staged`), but that only sees
     # the index a developer is about to commit — it cannot catch a secret

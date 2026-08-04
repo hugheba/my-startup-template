@@ -175,7 +175,28 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
+// --- second consumer: the gitleaks image tag in CI -------------------------
+// gitleaks is the one tool pinned in TWO places, because it runs in two: the
+// pre-commit hook resolves it through mise, and the CI job runs it as a
+// container. If those drift, "it passed locally" silently stops being a claim
+// about CI — both keep working, just as different scanners. Nothing else
+// catches that, so it is checked here rather than left to a comment.
+const SECURITY_WF = '.github/workflows/security.yml';
+const tag = /zricethezav\/gitleaks:v(\d+\.\d+\.\d+)@sha256:/.exec(read(SECURITY_WF))?.[1];
+
+if (tag !== env.GITLEAKS_VERSION) {
+  console.error(
+    `gitleaks pin mismatch:\n` +
+      `  ${ENV_FILE} pins GITLEAKS_VERSION=${env.GITLEAKS_VERSION}\n` +
+      `  ${SECURITY_WF} runs ${tag ? `v${tag}` : 'no pinned zricethezav/gitleaks image'}\n\n` +
+      `The hook and the CI job must be the same scanner. Bump both — and when\n` +
+      `bumping the workflow, re-resolve its digest, since the tag is pinned by one.\n`,
+  );
+  process.exit(1);
+}
+
 console.log(
   `mise.lock is in sync with ${ENV_FILE} ` +
-    `(${declared.size} tools × ${PLATFORMS.length} platforms verified).`,
+    `(${declared.size} tools × ${PLATFORMS.length} platforms verified), ` +
+    `and gitleaks v${tag} matches ${SECURITY_WF}.`,
 );

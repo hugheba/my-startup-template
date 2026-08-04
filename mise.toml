@@ -55,6 +55,14 @@ uv = "{{ env.UV_VERSION }}"         # python package/venv manager for scripts/
 gh = "{{ env.GH_VERSION }}"         # GitHub CLI (was a devcontainer feature)
 awscli = "{{ env.AWSCLI_VERSION }}" # apps/web deploys via AWS Amplify
 
+# Secret scanner, run by the pre-commit hook AND by CI. It is pinned here so the
+# two are the same binary reading the same rules — the previous split (secretlint
+# locally, gitleaks in CI) meant the innermost gate was the weakest one, and
+# nothing in either config said so. A static Go binary is also why this is
+# viable in a hook at all: it scans staged files in milliseconds, where the
+# Node-based scanner it replaced paid interpreter startup on every commit.
+gitleaks = "{{ env.GITLEAKS_VERSION }}"
+
 # ---- agent tooling -------------------------------------------------------
 opencode = "{{ env.OPENCODE_VERSION }}" # terminal AI agent, for delegated review passes
 rtk = "{{ env.RTK_VERSION }}"           # LLM token-reduction CLI proxy

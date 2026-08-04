@@ -24,11 +24,23 @@ pre-commit:
       run: pnpm exec prettier --write {staged_files}
       stage_fixed: true
 
-    # Deliberately unglobbed: a credential can land in any file type, including
-    # ones no formatter above touches (.env, .pem, .txt, a test fixture). This
-    # job only reads, so it needs no stage_fixed.
-    - name: secretlint
-      run: pnpm exec secretlint --secretlintignore .gitignore {staged_files}
+    # The same scanner CI runs, pinned to the same version in .devcontainer/.env.
+    # It used to be secretlint here and gitleaks in CI, which made the innermost
+    # gate the weakest one — secretlint's preset does not flag `AKIA…` AWS keys.
+    #
+    # No `{staged_files}` and no glob: `--staged` reads the index directly, so
+    # every staged file is covered including the types no formatter above touches
+    # (.env, .pem, .txt, a fixture). Reads only, so no stage_fixed.
+    #
+    # `-v` is load-bearing, not noise: without it a finding prints exactly
+    # "leaks found: 1" and nothing else — no file, no line, no rule. With it you
+    # get the Fingerprint, which is the string `.gitleaksignore` takes.
+    #
+    # Unlike CI this does NOT pass --redact. A finding here is in your own
+    # working tree on your own terminal, and seeing which string tripped is the
+    # whole point; CI redacts because its logs are public on a public repo.
+    - name: gitleaks
+      run: gitleaks git --staged --no-banner -v
 
 commit-msg:
   jobs:

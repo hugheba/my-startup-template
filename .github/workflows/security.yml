@@ -229,11 +229,14 @@ jobs:
   gitleaks:
     name: Secret scan (gitleaks)
     runs-on: ubuntu-latest
-    # BLOCKING, unlike the advisory scans above. secretlint already runs on
-    # staged files via lefthook, but that only sees the diff a developer is
-    # about to commit — it cannot catch a secret introduced in an earlier commit
-    # on the branch, or one added by a tool. gitleaks scans the whole history.
-    # It also covers what secretlint's preset misses, notably AWS keys.
+    # BLOCKING, unlike the advisory scans above. The same scanner runs in the
+    # pre-commit hook (`gitleaks git --staged`, via lefthook), but that only sees
+    # the index a developer is about to commit — it cannot catch a secret
+    # introduced in an earlier commit on the branch, or one added by a tool.
+    # This job scans the whole history. The image tag below must stay in lockstep
+    # with GITLEAKS_VERSION in .devcontainer/.env — same scanner, or the hook is
+    # telling developers something untrue about this job. `pnpm verify:mise`
+    # asserts that, so bumping one without the other fails CI rather than drifting.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

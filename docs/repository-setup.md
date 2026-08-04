@@ -54,6 +54,8 @@ This is the middle of the three positions in ADR-0018 and the only one that cann
 
 **Settings → Advanced Security → Code scanning.** Free on public repositories; on private ones it requires GitHub Advanced Security. Results land in the Security tab.
 
+This job runs on every PR **and on every push to `main`** — it is the only one of the four that does. The main-branch analysis is what a PR's alerts get diffed against, and what closes an alert once a merge fixes it; without it the weekly cron is the only thing analysing `main`, so both lag by up to 7 days.
+
 ---
 
 ## 5. Deployment environments

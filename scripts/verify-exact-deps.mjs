@@ -279,7 +279,7 @@ if (violations.length > 0) {
       '\n`npm view <pkg> version` and pin it in the script.' +
       '\nFor a workflow `uses:` ref, resolve the tag to the commit it points at with' +
       '\n`gh api repos/<owner>/<repo>/commits/<tag> --jq .sha` and keep the tag as a trailing' +
-      '\ncomment (`@<sha> # v4.1.2`) — Dependabot reads that comment to bump the pin later.',
+      '\ncomment (`@<sha> # v4.1.2`) — Renovate reads that comment to bump the pin later.',
   );
   process.exit(1);
 }

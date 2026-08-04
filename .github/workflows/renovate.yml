@@ -1,0 +1,89 @@
+name: Renovate
+
+# Dependency updates, replacing Dependabot — see ADR-0019.
+#
+# Self-hosted rather than the Renovate GitHub App, because .github/renovate.json
+# has to work unchanged on a GitLab mirror and the App is GitHub-only. The cost
+# of that choice is this file plus a manually-created PAT; both are the reason
+# docs/repository-setup.md exists.
+#
+# Weekly, not daily. Dependabot ran npm daily and produced a queue nobody drained
+# on a weekday; grouped weekly PRs are the same updates in fewer review sessions.
+on:
+  schedule:
+    - cron: '0 6 * * 1'
+  workflow_dispatch:
+
+# Renovate authenticates as RENOVATE_TOKEN, not as GITHUB_TOKEN — it opens the
+# PRs, pushes the branches and writes the Dependency Dashboard issue with the
+# PAT. GITHUB_TOKEN here only has to check out this repo so the entrypoint script
+# below exists on disk.
+permissions:
+  contents: read
+
+concurrency:
+  group: renovate
+  cancel-in-progress: false
+
+jobs:
+  renovate:
+    name: Renovate
+    runs-on: ubuntu-latest
+    env:
+      # The `secrets` context is not available in an `if:` condition, so the
+      # presence of the token is reduced to a boolean here, where it is. This is
+      # deliberately not `RENOVATE_TOKEN: ${{ secrets.RENOVATE_TOKEN }}` — that
+      # would hand the PAT to every step in the job to answer a yes/no question.
+      HAS_TOKEN: ${{ secrets.RENOVATE_TOKEN != '' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with: { persist-credentials: false }
+
+      # A fork, or this repo before the PAT is created, has no RENOVATE_TOKEN.
+      # Skipping loudly beats failing: a red scheduled run on a template repo is
+      # noise that trains people to ignore red scheduled runs.
+      - name: No token — skipping
+        if: env.HAS_TOKEN != 'true'
+        run: |
+          echo '### Renovate did not run' >> "$GITHUB_STEP_SUMMARY"
+          echo 'No `RENOVATE_TOKEN` secret is set. See `docs/repository-setup.md`.' >> "$GITHUB_STEP_SUMMARY"
+
+      # .devcontainer/.env is the single source of truth for tool versions
+      # (ADR-0004), and the mise installed inside the Renovate container has to
+      # be that mise — a different one could write a lockfile shaped differently
+      # from the one CI verifies. Read it out here rather than pinning a second
+      # copy in this file, which is the drift this repo pins things to avoid.
+      - name: Read MISE_VERSION from the version manifest
+        if: env.HAS_TOKEN == 'true'
+        run: grep -m1 '^MISE_VERSION=' .devcontainer/.env >> "$GITHUB_ENV"
+
+      - name: Run Renovate
+        if: env.HAS_TOKEN == 'true'
+        uses: renovatebot/github-action@316d7cd859606d6039a2182b7d69199e9b036835 # v46.2.1
+        with:
+          token: ${{ secrets.RENOVATE_TOKEN }}
+          # Pinned like everything else (ADR-0006). Unpinned, this action pulls
+          # whatever Renovate release is current at run time — a moving version
+          # of the tool whose entire job is to move versions deliberately.
+          renovate-version: 44.11.4
+          # The action runs Renovate in a container. root is needed because
+          # .github/renovate-entrypoint.sh installs mise into /usr/local/bin
+          # before handing off to the unprivileged `ubuntu` user; Renovate itself
+          # never runs as root.
+          docker-user: root
+          docker-cmd-file: .github/renovate-entrypoint.sh
+          # Default is RENOVATE_* plus a fixed handful. MISE_VERSION is added so
+          # the entrypoint can see which mise to install; without this the
+          # variable is set on the runner and absent in the container, and the
+          # entrypoint's `:?` guard fails the run rather than guessing.
+          env-regex: '^(?:RENOVATE_\w+|MISE_VERSION|LOG_LEVEL|GITHUB_COM_TOKEN|NODE_OPTIONS|NO_COLOR|(?:HTTPS?|NO)_PROXY|(?:https?|no)_proxy)$'
+        env:
+          # Without this, a PAT-authenticated run autodiscovers every repository
+          # the token can reach — which is every repository the account owns.
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
+          # postUpgradeTasks is refused unless the exact command is allowlisted
+          # here. This is a global (self-hosted) setting on purpose: a repo could
+          # otherwise grant itself arbitrary command execution by editing its own
+          # renovate.json. Anchored at both ends so it authorises this one
+          # command and nothing that merely starts with it.
+          RENOVATE_ALLOWED_COMMANDS: '["^mise lock -p linux-x64,linux-arm64,macos-arm64,macos-x64$"]'

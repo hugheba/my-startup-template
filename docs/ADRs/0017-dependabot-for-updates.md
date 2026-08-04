@@ -1,6 +1,6 @@
 # ADR-0017: Dependabot for dependency updates
 
-- **Status:** Accepted — revisit
+- **Status:** Superseded by [0019](0019-renovate-for-updates.md)
 - **Date:** 2026-08-03
 
 ## Context

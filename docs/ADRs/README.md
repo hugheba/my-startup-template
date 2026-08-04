@@ -30,8 +30,9 @@ Records are **immutable once accepted**. A decision that changes gets a new reco
 | [0014](0014-gortex-for-code-intelligence.md)           | Gortex for code intelligence                                   | Accepted                   |
 | [0015](0015-agents-md-single-source-of-truth.md)       | `AGENTS.md` is the single source of truth for conventions      | Accepted                   |
 | [0016](0016-vitest-colocated-tests.md)                 | Vitest, colocated, deliberately minimal                        | Accepted                   |
-| [0017](0017-dependabot-for-updates.md)                 | Dependabot for dependency updates                              | Accepted — revisit         |
+| [0017](0017-dependabot-for-updates.md)                 | Dependabot for dependency updates                              | Superseded by **0019**     |
 | [0018](0018-one-secret-scanner-three-positions.md)     | One secret scanner, three positions                            | Accepted — supersedes 0010 |
+| [0019](0019-renovate-for-updates.md)                   | Renovate for dependency updates                                | Accepted — supersedes 0017 |
 
 ## Adding a record
 

@@ -14,6 +14,8 @@ On GitHub, click **"Use this template" → "Create a new repository"**. (Don't f
 
 > 🔒 **Recommended: select `Private`** in the visibility selector. Your startup's PRD, architecture decisions, and any future credentials should not be world-readable while you're still figuring things out. You can flip to Public later from Settings → General → Danger Zone. (GitHub doesn't let template authors enforce this — it's your call at creation time.)
 
+> ⚙️ **A handful of things live in GitHub's settings, not in this repo**, so they don't come along with the template — branch protection, push protection, deploy environments, and the token that lets automated dependency updates run at all. None of them block you from coding today. All of them are written down in [`docs/repository-setup.md`](./docs/repository-setup.md); do them when you're past the "does this thing run" stage.
+
 ### 2. ☁️ Open in GitHub Codespaces
 
 In your new repo on GitHub: **Code → Codespaces → Create codespace on main**.

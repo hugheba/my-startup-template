@@ -23,7 +23,7 @@ Records are **immutable once accepted**. A decision that changes gets a new reco
 | [0007](0007-pin-github-actions-by-commit-sha.md)       | Pin GitHub Actions by commit SHA                               | Accepted — amends **0006** |
 | [0008](0008-pnpm-settings-in-workspace-yaml.md)        | All pnpm settings live in `pnpm-workspace.yaml`                | Accepted                   |
 | [0009](0009-lefthook-for-git-hooks.md)                 | lefthook for git hooks                                         | Accepted                   |
-| [0010](0010-layered-secret-scanning.md)                | Layered secret scanning: fast filter, hard boundary            | Accepted                   |
+| [0010](0010-layered-secret-scanning.md)                | Layered secret scanning: fast filter, hard boundary            | Superseded by **0018**     |
 | [0011](0011-advisory-versus-blocking-security-jobs.md) | Security jobs are advisory; only leaked secrets block          | Accepted                   |
 | [0012](0012-least-privilege-ci-credentials.md)         | Least-privilege CI credentials                                 | Accepted                   |
 | [0013](0013-tracking-branch-deployments.md)            | Deploy from tracking branches, to two platforms                | Accepted                   |
@@ -31,6 +31,7 @@ Records are **immutable once accepted**. A decision that changes gets a new reco
 | [0015](0015-agents-md-single-source-of-truth.md)       | `AGENTS.md` is the single source of truth for conventions      | Accepted                   |
 | [0016](0016-vitest-colocated-tests.md)                 | Vitest, colocated, deliberately minimal                        | Accepted                   |
 | [0017](0017-dependabot-for-updates.md)                 | Dependabot for dependency updates                              | Accepted — revisit         |
+| [0018](0018-one-secret-scanner-three-positions.md)     | One secret scanner, three positions                            | Accepted — supersedes 0010 |
 
 ## Adding a record
 

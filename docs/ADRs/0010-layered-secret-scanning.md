@@ -30,7 +30,9 @@ gitleaks also sees what the hook cannot: a secret introduced in an earlier commi
 
 ## Consequences
 
-Two tools, two configs, two vocabularies for the same concern. That is the cost, and it is the reason consolidating onto gitleaks alone — which is already pinned via mise and already runs in CI — is under consideration. It would mean one scanner and one pin covering both positions.
+Two tools, two configs, two vocabularies for the same concern. That is the cost, and it is the reason consolidating onto gitleaks alone is under consideration.
+
+**That consolidation is not as cheap as it reads.** gitleaks runs in CI as a digest-pinned container image and is **not** part of the toolchain — `mise.toml` declares nine tools and gitleaks is not one of them, so a local hook has no existing pin to reuse. It would need adding to `mise.toml` with `mise.lock` regenerated across all four platforms, or a container start on every commit. Neither is large; both are more than the "one pin already there" this paragraph used to claim.
 
 Until that happens, **the coverage gap is asymmetric and must not be misread**: passing the pre-commit hook does not mean the branch is clean, because the hook misses AWS keys and misses earlier commits. Only the CI run is a statement about the branch.
 

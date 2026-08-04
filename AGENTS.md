@@ -101,7 +101,7 @@ Anything the OS must provide — `build-essential`, `zlib1g-dev` (GraalVM `nativ
 
 **Every dependency that feeds a build or ships to users is pinned to an exact version. No `^`, no `~`, no `>=`, no `*`, no `latest`, no floating tags.** A range means two people who run the same install on the same commit can get different bytes, and "it broke and nothing changed" becomes unanswerable. Two surfaces are exempt by policy — they are listed at the end of this section.
 
-This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including the `overrides` values in `pnpm-workspace.yaml` — and on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA.
+This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including the `overrides` values in `pnpm-workspace.yaml` and the `npx` invocations in `.mcp.json` — and on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA.
 
 When adding a dependency:
 
@@ -119,6 +119,7 @@ Where the rule applies today:
 | workspace `package.json` deps        | exact versions + `pnpm verify:deps` gate                   |
 | `overrides` (`pnpm-workspace.yaml`)  | exact versions (the key may be a range — it is a selector) |
 | `npx` / `dlx` inside a script        | exact versions + `pnpm verify:deps` gate                   |
+| MCP servers in `.mcp.json`           | exact versions + `pnpm verify:deps` gate                   |
 | toolchain (Node, Python, GraalVM, …) | `mise.toml` exact versions + `mise.lock` checksums         |
 | `.nvmrc` / `scripts/.python-version` | exact, kept in lockstep with `mise.toml`                   |
 | devcontainer OS packages             | apt version pins in `.devcontainer/Dockerfile`             |
@@ -277,7 +278,7 @@ git push origin main:refs/heads/deploy/stage main:refs/heads/deploy/prod
 
 ## Code intelligence (Gortex)
 
-[Gortex](https://github.com/zzet/gortex) indexes this repo into a queryable graph and serves it to agents over MCP. It is baked into the dev container and indexed by `postCreateCommand`; the MCP server is registered in `.claude/settings.json`.
+[Gortex](https://github.com/zzet/gortex) indexes this repo into a queryable graph and serves it to agents over MCP. It is baked into the dev container and indexed by `postCreateCommand`; the MCP server is registered in `.mcp.json`.
 
 Prefer graph queries over blind file reads when locating code:
 
@@ -301,13 +302,14 @@ packages/config/         eslint, tsconfig, tailwind, prettier
 scripts/                 Python (UV) ad-hoc scripts + custom MCPs
 .devcontainer/           Codespaces config
 .github/                 CI, security, deploy workflows + Copilot instructions
-.claude/                 Claude Code settings + MCP entries
+.mcp.json                MCP servers (project scope, shared)
+.claude/                 Claude Code settings (permissions, MCP approvals)
 .vscode/                 Workspace settings + recommended extensions
 docs/superpowers/        Design specs and implementation plans
 ```
 
 ## When extending the template (post-BMAD-init)
 
-1. **Adding a DB:** uncomment the `supabase` MCP in `.claude/settings.json` and add the relevant credentials. Add migrations apply steps in `deploy-dev.yml` / `promote.yml` (placeholders are already commented in).
+1. **Adding a DB:** the `supabase` MCP is defined in `.mcp.json` and rejected by `disabledMcpjsonServers` in `.claude/settings.json` — drop it from that list and set `SUPABASE_ACCESS_TOKEN` / `SUPABASE_PROJECT_REF`. Add migrations apply steps in `deploy-dev.yml` / `promote.yml` (placeholders are already commented in).
 2. **Adding another app:** create `apps/<name>/` matching the `apps/web/` shape. Add an `appRoot:` block to `amplify.yml` (the existing block has comments showing the multi-app pattern).
 3. **Adding shared code:** extract into `packages/<name>/` with its own `package.json` (`workspace:*`), an `eslint.config.mjs` extending the shared config, and a `tsconfig.json` extending the shared config.

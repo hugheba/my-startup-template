@@ -7,7 +7,7 @@
 //
 // Allowed non-exact specifiers are protocol links, which name a location rather
 // than a version and cannot carry a range.
-import { globSync, readFileSync } from 'node:fs';
+import { existsSync, globSync, readFileSync } from 'node:fs';
 
 const DEP_FIELDS = ['dependencies', 'devDependencies', 'peerDependencies', 'optionalDependencies'];
 const PROTOCOL = /^(workspace|link|file|catalog|npm|git|github|https?):/;
@@ -217,6 +217,39 @@ for (const file of workflows.sort()) {
     });
 }
 
+// MCP servers are dependencies with an unusually short path to execution: Claude
+// Code spawns `command args...` directly, so `npx -y pkg@latest` here runs
+// whatever was published minutes ago, with the developer's environment and
+// credentials, and no review anywhere in between. The invocation is the same
+// shape the DLX pattern already reads — it is just split across two JSON fields
+// instead of sitting in one script string, which is the only reason this file
+// was invisible to the gate.
+//
+// Absent file means no MCP servers, which is legitimate for a stripped-down
+// fork. Present but unreadable is not: that is the silent-success case the
+// overrides cross-check below also guards against.
+const MCP = '.mcp.json';
+let mcpServers = {};
+if (existsSync(MCP)) {
+  try {
+    mcpServers = JSON.parse(readFileSync(MCP, 'utf8')).mcpServers ?? {};
+  } catch (err) {
+    console.error(
+      `verify-exact-deps.mjs: ${MCP} exists but could not be parsed — ${err.message}\n` +
+        'Refusing to report success on MCP servers this gate did not actually read.',
+    );
+    process.exit(2);
+  }
+}
+
+for (const [name, server] of Object.entries(mcpServers)) {
+  if (typeof server?.command !== 'string') continue; // http/sse servers run no command
+  const invocation = [server.command, ...(server.args ?? [])].join(' ');
+  for (const [, tool, spec] of invocation.matchAll(DLX)) {
+    if (!EXACT.test(spec)) violations.push(`${MCP}  mcpServers.${name} runs ${tool}@${spec}`);
+  }
+}
+
 const WORKSPACE = 'pnpm-workspace.yaml';
 const workspaceYaml = readFileSync(WORKSPACE, 'utf8');
 const overrides = parseOverrides(workspaceYaml);
@@ -253,5 +286,5 @@ if (violations.length > 0) {
 
 console.log(
   `All dependency specifiers are exact (${files.length} package.json, ${workflows.length} workflow files, ` +
-    `${Object.keys(overrides).length} pnpm overrides checked).`,
+    `${Object.keys(overrides).length} pnpm overrides, ${Object.keys(mcpServers).length} MCP servers checked).`,
 );

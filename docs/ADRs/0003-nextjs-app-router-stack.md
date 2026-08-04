@@ -29,6 +29,8 @@ shadcn/ui rather than a component library dependency: shadcn copies source into 
 
 **shadcn components cannot be version-pinned**, because they are not a dependency. `pnpm dlx shadcn@latest add <component>` is the documented way to add one, and it is deliberately outside the exact-pinning rule in [ADR-0006](0006-exact-dependency-pinning.md) — that rule covers inputs to a build, and this is a code generator run by hand whose output is then committed and reviewed. The generated files are the artifact, not the generator.
 
+**This exemption covers that command only, not the `shadcn` name.** The shadcn MCP server in `.mcp.json` is pinned exactly, like every other MCP server, because nothing about it is reviewed: it executes in the developer's session rather than emitting a diff. Same package, opposite treatment, and the reason is the review step — not the publisher.
+
 The trade is that components do not receive upstream fixes automatically. Re-running `add` for a component overwrites local edits, so a customized component is customized permanently. This is the intended shape — it is why shadcn is not a dependency — but it means treating a heavily edited component as owned code, not as a vendored file.
 
 Tailwind v4 configures through CSS rather than `tailwind.config.js`. The shared config in `packages/config/tailwind` reflects that, and v3 examples found online will not transfer directly.

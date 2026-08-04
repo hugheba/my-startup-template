@@ -189,8 +189,9 @@ jobs:
               echo '### ⚠️ `pnpm audit` found high-severity advisories'
               echo
               echo 'Advisory only — this step never fails the build. Transitive fixes'
-              echo 'go in `overrides` (pnpm-workspace.yaml), a surface Dependabot alerts'
-              echo 'on but cannot auto-update. See AGENTS.md > Dependencies.'
+              echo 'go in `overrides` (pnpm-workspace.yaml). Renovate updates those, but'
+              echo 'only the target — bump the selector range with it, or the override'
+              echo 'matches nothing. See AGENTS.md > Security.'
               echo
               echo '```text'
               cat audit.txt

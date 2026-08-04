@@ -1,0 +1,130 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": [
+    "Dependency updates. Replaces .github/dependabot.yml — see ADR-0019 for why.",
+    "Renovate is self-hosted from .github/workflows/renovate.yml, not the GitHub App:",
+    "this file has to work unchanged on GitLab, and the App is GitHub-only.",
+    "IT DOES NOTHING UNTIL A RENOVATE_TOKEN SECRET EXISTS. That is a manual step in",
+    "the GitHub UI and is written down in docs/repository-setup.md.",
+    "Renovate config is JSON with no comment syntax, so every non-obvious rule below",
+    "carries a `description` — which is not decoration: Renovate prints them on the",
+    "Dependency Dashboard, so the reasoning shows up where the PR does. Only the keys",
+    "that accept one have it; the rest is explained here.",
+    "",
+    "prHourlyLimit: the default is 2, sized for Renovate running hourly. This runs",
+    "weekly (the cron in renovate.yml), so 2 would mean two PRs a week and a backlog",
+    "that never drains. 0 removes the hourly limit; prConcurrentLimit (10, inherited",
+    "from config:recommended) is what actually bounds the queue — the same number",
+    "dependabot.yml used for open-pull-requests-limit.",
+    "",
+    "postUpgradeTasks: closes the two-file bump. .devcontainer/.env and mise.lock are",
+    "one change split across two files — a bumped version with a stale lock has no",
+    "reviewed checksum, and `pnpm verify:mise` fails the PR for it. Renovate can only",
+    "edit the first file, so it runs the command a human would run, in the branch,",
+    "before the PR opens. That needs mise on PATH inside the Renovate container",
+    "(.github/renovate-entrypoint.sh) and the command allowed globally via",
+    "RENOVATE_ALLOWED_COMMANDS in the workflow. If it fails, the PR still opens with a",
+    "stale lock and verify:mise catches it: the failure mode is a red PR you finish by",
+    "hand, not a lock nobody checked.",
+    "",
+    "No `schedule` here on purpose. The workflow cron already decides when Renovate",
+    "runs, and a schedule in this file would also silently swallow manual",
+    "workflow_dispatch runs outside its window. No automerge either — every PR in this",
+    "repo is merged by a human."
+  ],
+  "extends": ["config:recommended", ":semanticCommits"],
+
+  "dependencyDashboard": true,
+  "prHourlyLimit": 0,
+
+  "devcontainer": {
+    "description": "Disabled deliberately. The authoritative pin for the docker-in-docker feature is the version+integrity pair in .devcontainer/devcontainer-lock.json, and Renovate cannot regenerate that lock. It would bump the `:4` selector in devcontainer.json and leave the lock resolving the old digest — a half-applied bump that still builds, from a lock nobody reviewed. Bump both by hand with `devcontainer upgrade`. See the comment on DOCKER_IN_DOCKER_FEATURE_VERSION in .devcontainer/.env.",
+    "enabled": false
+  },
+
+  "mise": {
+    "description": "Disabled deliberately. mise.toml holds no versions — every value is a `{{ env.X }}` template resolved from .devcontainer/.env (ADR-0004). Renovate cannot read through the template, so leaving this manager on would list nine permanently-unresolvable dependencies on the dashboard. The real pins are reached by the customManager below.",
+    "enabled": false
+  },
+
+  "customManagers": [
+    {
+      "description": "Version pins in .devcontainer/.env, matched by the `# renovate:` annotation written directly above each one. The annotation lives at the pin rather than in a datasource table here on purpose: it is readable by whoever is editing the pin, it survives a key rename, and a key with no annotation is visibly untracked — which is how JAVA_VERSION, the apt pins, the base image and the devcontainer feature advertise that they are bumped by hand, each with the reason stated in that file.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.devcontainer/\\.env$/"],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>\\S+) depName=(?<depName>\\S+)(?: extractVersion=(?<extractVersion>\\S+))?\\n\\w+=(?<currentValue>\\S+)"
+      ]
+    },
+    {
+      "description": "The gitleaks scanner image in the CI job. It is a `docker run` inside a `run:` block, not a `uses:` or a Dockerfile FROM, so no built-in manager sees it. Both halves of the pin are captured — currentValue is the tag `pnpm verify:mise` compares against GITLEAKS_VERSION, currentDigest is what actually gets pulled.",
+      "customType": "regex",
+      "managerFilePatterns": ["/^\\.github/workflows/security\\.yml$/"],
+      "matchStrings": [
+        "(?<depName>zricethezav/gitleaks):(?<currentValue>v[^@\\s]+)@(?<currentDigest>sha256:[a-f0-9]+)"
+      ],
+      "datasourceTemplate": "docker"
+    }
+  ],
+
+  "packageRules": [
+    {
+      "description": "Carried over from dependabot.yml: type packages move together. Listed before the `next` group so react's types can be claimed back by it below — later rules win in Renovate, where Dependabot took the first match.",
+      "matchPackageNames": ["@types/**"],
+      "groupName": "types"
+    },
+    {
+      "matchPackageNames": ["next", "react", "react-dom", "@types/react", "@types/react-dom"],
+      "groupName": "next"
+    },
+    {
+      "matchPackageNames": ["eslint*", "@eslint/**", "typescript-eslint", "@typescript-eslint/**"],
+      "groupName": "eslint"
+    },
+    {
+      "matchPackageNames": [
+        "tailwindcss",
+        "@tailwindcss/**",
+        "tailwind-merge",
+        "prettier-plugin-tailwindcss"
+      ],
+      "groupName": "tailwind"
+    },
+    {
+      "matchPackageNames": ["lefthook", "commitlint", "@commitlint/**"],
+      "groupName": "commit-tooling"
+    },
+    {
+      "description": "gitleaks is the one tool pinned twice — GITLEAKS_VERSION in .devcontainer/.env drives the pre-commit hook, the tag+digest in security.yml drives CI, and scripts/verify-mise-lock.mjs asserts they are equal (ADR-0018). Ungrouped, Renovate would open two PRs that each pass on their own branch and fail the instant either one merged.",
+      "matchDepNames": ["gitleaks/gitleaks", "zricethezav/gitleaks"],
+      "groupName": "gitleaks"
+    },
+    {
+      "description": "NODE_VERSION in .devcontainer/.env and .nvmrc are the same number in two files, reached by two different managers. Same for PYTHON_VERSION and scripts/.python-version. One PR each, or they drift for however long the second PR sits.",
+      "matchDepNames": ["node"],
+      "groupName": "node"
+    },
+    {
+      "matchDepNames": ["python"],
+      "groupName": "python"
+    },
+    {
+      "description": "ESLint 10 removed context.getFilename(), which eslint-plugin-react still calls — it throws \"contextOrFilename.getFilename is not a function\" on any file containing a component. eslint-plugin-import and eslint-plugin-jsx-a11y also cap their peer range at ^9. All three are already at their latest release, so there is nothing to upgrade *to*. Drop this rule once they ship ESLint 10 support.",
+      "matchPackageNames": ["eslint", "@eslint/js"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    },
+    {
+      "description": "@types/node must track the Node major actually being run (24 — see engines, mise.toml and the workflows), not npm's latest. A newer major type-checks against APIs that do not exist at run time.",
+      "matchPackageNames": ["@types/node"],
+      "matchUpdateTypes": ["major"],
+      "enabled": false
+    }
+  ],
+
+  "postUpgradeTasks": {
+    "commands": ["mise lock -p linux-x64,linux-arm64,macos-arm64,macos-x64"],
+    "fileFilters": ["mise.lock"],
+    "executionMode": "branch"
+  }
+}

@@ -47,7 +47,8 @@ It will walk you through the brainstorm → PRD → architecture phases.
 | Toolchain       | mise (`mise.toml` + `mise.lock`) — owns every language and CLI |
 | Runtime         | Node 24 LTS                                                    |
 | Package manager | pnpm 11.20.0 (Corepack — auto-installed)                       |
-| JVM             | GraalVM CE 21 incl. `native-image`                             |
+| JVM             | GraalVM CE 21 incl. `native-image`; Kotlin 2.4 + Gradle 9      |
+| Rust            | 1.97 via rustup — the one tool `mise.lock` cannot checksum     |
 | Monorepo        | Turborepo                                                      |
 | Framework       | Next.js 16 (App Router, RSC)                                   |
 | UI runtime      | React 19                                                       |
@@ -77,6 +78,8 @@ That one file has **two consumers**:
 2. **mise** loads it via `[env] _.file` and templates every `[tools]` version from it with `{{ env.X }}`.
 
 `mise.lock` pins each tool to an exact release-asset URL and SHA256 **per platform**, and records SLSA provenance where the publisher signs it. Templating costs nothing here — the lock is generated against the resolved versions. **Never delete it** — mise only maintains a lockfile that already exists, and without it builds silently downgrade to "resolve whatever is latest".
+
+**`rust` is the one exception**, and it is exempt by name rather than by accident. mise's `core:rust` backend delegates to rustup, which resolves and downloads toolchains itself, so mise never sees an asset URL and `mise lock` writes a version-only entry (the `asdf:code-lever/asdf-rust` backend behaves identically). Integrity there is rustup's — signed channel manifests over TLS — not this lockfile's. `NO_PLATFORM_CHECKSUMS` in `scripts/verify-mise-lock.mjs` carries the reasoning, the version half of the gate still applies to it, and `pnpm verify:mise` prints the exemption on every run so the coverage gap cannot go quiet. Adding a name to that set is a supply-chain decision, not a formality.
 
 To bump anything:
 
@@ -197,16 +200,20 @@ uv add --dev <package> # add a dev dep
 - **Prettier** formats on save and on staged files.
 - **Git hooks** live in [`lefthook.yml`](lefthook.yml) — one file for both the hook definitions and the checks they run. `pnpm install` installs them via the `prepare` script. Jobs there run sequentially on purpose; see the comment at the top of the file before adding `parallel: true`.
 - **Commits** must follow conventional-commit format (`feat(scope):`, `fix(scope):`, `chore:`, `docs:`, `ci:`, `build:`). Enforced by commitlint on `commit-msg`.
-- **VS Code extensions** are kept in lockstep between `.vscode/extensions.json` (recommendations) and `.devcontainer/devcontainer.json` (auto-installed in Codespaces). `pnpm verify:vscode` enforces this in CI.
+- **VS Code extensions** are kept in lockstep between `.vscode/extensions.json` (recommendations) and `.devcontainer/devcontainer.json` (auto-installed in Codespaces). `pnpm verify:vscode` enforces this in CI. The prompts a fresh clone sees on first launch — and which of them silently degrade the toolchain if dismissed — are in [`docs/vscode-setup.md`](docs/vscode-setup.md).
 
 ## Testing
 
 Vitest runs in `apps/web` only — today it is the only workspace with code. `pnpm test` (→ `turbo run test`) is part of the required `Lint + Typecheck + Build + Test` check.
 
-- Tests sit **beside** what they cover: `lib/utils.ts` → `lib/utils.test.ts`. No separate `__tests__/` tree.
-- Import `describe` / `it` / `expect` from `vitest` explicitly. There is no config file, no setup file, and no `globals: true` — zero-config works because `apps/web` is `"type": "module"`.
-- There is deliberately **no jsdom and no @testing-library**. Add them with the first component that has behavior worth asserting, not the first one that renders static markup.
-- To add a runner to another workspace: add `vitest` (exact-pinned, per the section above) and a `"test": "vitest run"` script. `turbo.json` already declares the task — nothing changes there.
+- Tests sit **beside** what they cover: `lib/utils.ts` → `lib/utils.test.ts`, `components/ui/button.tsx` → `components/ui/button.test.tsx`. No separate `__tests__/` tree.
+- Import `describe` / `it` / `expect` from `vitest` explicitly. `globals` stays **false** — it keeps a test file's dependencies visible and ESLint's `no-undef` honest.
+- **Component tests run in jsdom** via [`apps/web/vitest.config.ts`](apps/web/vitest.config.ts), with `@testing-library/react` and the `jest-dom` matchers. Three things in that config are load-bearing and each fails as something other than what it is — read its comments before changing it:
+  - `oxc: { jsx: { runtime: 'automatic' } }` — the shared tsconfig sets `jsx: "preserve"` for Next, so without this the transformer emits JSX verbatim and tests die with "invalid JS syntax" pointing at the component's first tag. It is `oxc`, not `esbuild` (Vitest 4 switched); the `esbuild` key is not an error, it warns and is ignored. Use the object form — the bare string `'automatic'` runs but fails `tsc --noEmit`.
+  - `resolve.alias` for `@/*` — Vite does not read tsconfig `paths`, so every `@/lib/utils` import inside a component fails to resolve. It is a second home for that mapping; change both together.
+  - [`vitest.setup.ts`](apps/web/vitest.setup.ts) calls `cleanup()` in `afterEach` by hand, because Testing Library only self-registers that when `globals` is true. Without it, renders accumulate in one `document.body` and `getByRole` starts throwing "found multiple elements" in whichever test runs second.
+- Assert **behaviour that can break**, not the implementation restated. The existing tests each guard a named failure mode in a comment — `asChild` silently ceasing to render links, a dropped `ref` mispositioning every Radix overlay, a caller's `className` losing to a variant class. A test that cannot fail is worse than no test, because it reports coverage it does not provide.
+- To add a runner to another workspace: add `vitest` (exact-pinned, per the section above) and a `"test": "vitest run"` script. `turbo.json` already declares the task — nothing changes there. A workspace rendering components also needs the jsdom setup above; one that does not can stay zero-config.
 
 **`turbo run test` exits 0 when no workspace defines a `test` script.** It prints `Tasks: 0 successful, 0 total` and the required check goes green having run nothing. That is how this repo shipped a `Test` gate that had never executed a test. If you delete the last `test` script, the gate does not turn red — it goes quiet.
 

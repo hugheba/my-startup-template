@@ -47,8 +47,34 @@ node = "{{ env.NODE_VERSION }}"
 python = "{{ env.PYTHON_VERSION }}"
 
 # GraalVM CE 21 with native-image. See .devcontainer/.env for why community
-# rather than Oracle, and for the zlib1g-dev link-time dependency.
+# rather than Oracle, and for the zlib1g-dev link-time dependency. Also the JVM
+# that kotlin and gradle below run on, and that JAVA_HOME points at.
 java = "{{ env.JAVA_VERSION }}"
+
+# Kotlin compiler. Declared AFTER java deliberately — it needs a JVM to run on
+# and mise installs in declaration order.
+kotlin = "{{ env.KOTLIN_VERSION }}"
+
+# Gradle, the build tool for both. A committed wrapper still takes precedence
+# (see .devcontainer/.env); this is the fallback and what `gradle init` runs
+# from. Maven is deliberately absent — adding it would mean a second build tool
+# nothing in this template uses.
+gradle = "{{ env.GRADLE_VERSION }}"
+
+# Rust: rustc, cargo and the components below. Cargo needs a linker, which
+# build-essential (pinned in .devcontainer/.env) already provides.
+#
+# `components` is NOT decoration. rustup's default profile omits rust-src, and
+# without it rust-analyzer cannot resolve the standard library: hovering `Vec`
+# or jumping into `Option` fails, and the extension reports it as a sysroot
+# error rather than a missing component. clippy and rustfmt are in the default
+# profile today and are named anyway, so a future profile change cannot remove
+# them silently.
+#
+# The one tool here whose lock entry carries no checksums — mise's backend
+# delegates to rustup. .devcontainer/.env explains why, and
+# scripts/verify-mise-lock.mjs names the exemption instead of hiding it.
+rust = { version = "{{ env.RUST_VERSION }}", components = "rust-src,clippy,rustfmt" }
 
 # ---- utilities -----------------------------------------------------------
 uv = "{{ env.UV_VERSION }}"         # python package/venv manager for scripts/

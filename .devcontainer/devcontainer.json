@@ -64,13 +64,135 @@
         "bradlc.vscode-tailwindcss",
         "ms-python.python",
         "charliermarsh.ruff",
+        "vscjava.vscode-java-pack",
+        "redhat.vscode-quarkus",
+        "jetbrains.kotlin-server",
+        "rust-lang.rust-analyzer",
+        "vadimcn.vscode-lldb",
+        "tamasfe.even-better-toml",
+        "sonarsource.sonarlint-vscode",
         "redhat.vscode-yaml",
         "mikestead.dotenv",
         "vivaxy.vscode-conventional-commits",
         "anthropic.claude-code",
-        "github.copilot",
         "github.copilot-chat"
-      ]
+      ],
+      // SonarLint's language server is a JVM process: it needs a real JRE 21+
+      // and a real Node — the extension host spawns both itself, and it spawns
+      // them from OUTSIDE the repo, where a mise shim has no config to resolve
+      // against and fails to stderr with an empty stdout (gotcha 10). So these
+      // are absolute INSTALL paths, never shims and never `java`/`node` on
+      // PATH. Both are mise's floating alias symlinks
+      // (`graalvm-community-latest`, `node/latest`), so a toolchain bump does
+      // not have to be re-typed here — but a change to mise's on-disk layout
+      // breaks them silently, and the CI Sonar job is what catches that.
+      //
+      // These live here rather than in .vscode/settings.json because they are
+      // container-absolute: /home/vscode/... does not exist on a host checkout,
+      // and a workspace setting would override the container's with a path that
+      // resolves nowhere.
+      //
+      // Analysis works standalone. Connected mode additionally needs the
+      // SonarCloud project and SONAR_TOKEN (see DEVCONTAINER.md §7) — still an
+      // operator action, and deliberately not wired up here.
+      //
+      // The Java and Kotlin servers below are JVM processes with the SAME
+      // spawned-from-outside-the-repo problem, so they get the same treatment:
+      // absolute install paths, never shims. The Dockerfile additionally sets
+      // JAVA_HOME and a global mise default for java/kotlin/gradle, which is
+      // what catches the processes these servers fork in turn (notably the
+      // Gradle daemon) — those inherit an environment, not these settings.
+      //
+      // vscjava.vscode-java-pack must stay in the extensions list for
+      // SonarLint's Java analysis to work at all. Sonar reads the classpath
+      // from redhat.java (bundled in that pack) and silently analyses no Java
+      // without it — which is also why Oracle's extension is not the choice
+      // here; it does not provide that integration.
+      //
+      // THE RULE FOR THIS BLOCK: every path the Java tooling can resolve on its
+      // own is pinned to a mise install, and every setting whose DEFAULT would
+      // make it fetch or guess a toolchain is turned off. The two that download
+      // (`java.import.gradle.version`, `java.import.gradle.wrapper.enabled`)
+      // are called out by name below so nobody adds them back by accident.
+      "settings": {
+        "sonarlint.ls.javaHome": "/home/vscode/.local/share/mise/installs/java/graalvm-community-latest",
+        "sonarlint.pathToNodeExecutable": "/home/vscode/.local/share/mise/installs/node/latest/bin/node",
+        // JVM that runs the Eclipse JDT language server itself.
+        "java.jdt.ls.java.home": "/home/vscode/.local/share/mise/installs/java/graalvm-community-latest",
+        // JDK projects compile AGAINST. Same install, different question — the
+        // one above is what the server runs on. Named JavaSE-21 because that is
+        // the execution environment JDT matches against; it must agree with the
+        // major in JAVA_VERSION, so a bump to a new LTS has to be re-typed here.
+        "java.configuration.runtimes": [
+          {
+            "name": "JavaSE-21",
+            "path": "/home/vscode/.local/share/mise/installs/java/graalvm-community-latest",
+            "default": true
+          }
+        ],
+        // Nothing to detect: there is exactly one JDK here and it is named
+        // above. Default is true, which scans the filesystem at every startup
+        // and can bind a runtime this file never sanctioned.
+        "java.configuration.detectJdksAtStart": false,
+        // The importer forks a Gradle daemon; without this it picks its own JDK.
+        "java.import.gradle.java.home": "/home/vscode/.local/share/mise/installs/java/graalvm-community-latest",
+        // GRADLE_USER_HOME — the dependency cache and daemon registry. Already
+        // the default, set explicitly because it is the one Java path that is
+        // NOT under a mise install and therefore easy to miss: it lives in the
+        // container's home, which is NOT a named volume in docker-compose.yml
+        // (only ~/.claude and ~/.gortex are), so it is rebuilt from scratch on
+        // every container rebuild. That is correctness-neutral and purely a
+        // re-download cost — see the note in the summary if that becomes
+        // annoying enough to warrant a volume.
+        "java.import.gradle.user.home": "/home/vscode/.gradle",
+        // Explicit because the whole Gradle strategy here rests on it: the
+        // wrapper a project commits wins over anything this file could name.
+        // Its companion `java.import.gradle.version` is DELIBERATELY UNSET —
+        // setting it makes the extension DOWNLOAD that Gradle, which would
+        // silently bypass GRADLE_VERSION and mise.lock's checksum entirely.
+        "java.import.gradle.wrapper.enabled": true,
+        // `java.import.gradle.home` is DELIBERATELY UNSET. mise extracts Gradle
+        // to installs/gradle/latest/gradle-<version>/ — the version is baked
+        // into the path BELOW the floating alias, unlike java and node above,
+        // so any value here would be a second place GRADLE_VERSION drifts and
+        // would break silently on every bump. Projects import via their
+        // committed wrapper instead (`java.import.gradle.wrapper.enabled`
+        // defaults true); `gradle` on PATH resolves through mise's shim for
+        // CLI use, including the `gradle init` that creates that wrapper.
+        //
+        // Gradle over Maven to match the above; there is no Maven in this
+        // toolchain. Default is null, i.e. the extension guesses.
+        "intellij.buildTool": "gradle",
+        // Kotlin's JDK. Not in the extension's published docs — which list only
+        // `jetbrains.kotlin.hints.*`, `jetbrains.templates.kotlin.*` and the
+        // build tool — but it IS in the shipped package.json, described as
+        // "Path to the JDK used for symbol resolution", defaulting to null.
+        // Read straight off the installed extension; re-check it on upgrade,
+        // because an Alpha key absent from the docs can be renamed without
+        // ceremony, and the failure would look like broken Kotlin resolution
+        // rather than a dropped setting.
+        "intellij.jdkForSymbolResolution": "/home/vscode/.local/share/mise/installs/java/graalvm-community-latest",
+        // Maven importer OFF. The pack bundles vscjava.vscode-maven and the
+        // importer defaults ON, so without this the extension advertises Maven
+        // support backed by a binary mise.toml deliberately does not install.
+        // To actually use Maven, add it to mise.toml and .devcontainer/.env
+        // first, then flip this — do not flip it alone.
+        "java.import.maven.enabled": false,
+        // Standard, not the `Hybrid` default. Hybrid starts the lightweight
+        // syntax-only server and upgrades once it finds a project to import —
+        // but this template ships NO Java project, so a fresh clone can sit in
+        // lightweight mode indefinitely, and SonarLint's Java analysis requires
+        // standard mode. Hybrid's benefit is startup responsiveness; this trades
+        // that for a server whose capabilities do not depend on what happens to
+        // be in the workspace.
+        "java.server.launchMode": "Standard",
+        // Experimental but on by default, and load-bearing for THIS pairing: it
+        // is what makes the Java importer understand `org.jetbrains.kotlin.jvm`
+        // in a Gradle build, so a mixed Java/Kotlin module resolves. Explicit
+        // because a default that flips upstream would look like a Kotlin
+        // classpath bug.
+        "java.jdt.ls.kotlinSupport.enabled": true
+      }
     }
   },
   // ubuntu24.04 base ships `vscode`, not `node` (the old typescript-node base's

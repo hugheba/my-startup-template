@@ -147,6 +147,51 @@ COPY --chown=vscode:vscode mise.toml mise.lock ./
 COPY --chown=vscode:vscode .devcontainer/.env ./.devcontainer/.env
 RUN mise trust && mise install
 
+# Give the shims a global fallback for Python.
+#
+# A mise shim resolves its version from the mise.toml governing its CALLER'S
+# working directory. Invoked from anywhere outside the repo it finds no config
+# and no global default, and then it does the worst possible thing: writes
+# `mise ERROR No version is set for shim: python` to STDERR, leaves STDOUT
+# EMPTY, and exits 1. Anything capturing stdout sees a Python that ran and said
+# nothing rather than one that failed.
+#
+# `pet` — the Rust locator behind ms-python.vscode-python-envs — probes every
+# `python*` on PATH from its own cwd, so it hit exactly this, 42 times per
+# window, logged only as `produced an output "" without a separator`. Global
+# discovery therefore found ZERO interpreters and the Python Environments view
+# offered to install Python into a container that already had it.
+#
+# The version is READ FROM mise.toml (`mise current`), never typed here, so
+# this cannot become a second place the pin drifts — it is regenerated from the
+# same manifest on every build. Repo config still wins inside the repo; this
+# only supplies an answer where there previously was none.
+# The JVM trio and Rust are here for the same reason and read from the same
+# manifest. Each has something that spawns it from outside the repo: the Java and
+# Kotlin language servers (the extension host launches them from its own cwd, not
+# the workspace), the Gradle daemon, which forks a fresh JVM, and rust-analyzer,
+# which shells out to `cargo` for metadata and check runs. Without a global
+# default each hits the empty-stdout failure described above.
+RUN mise use -g "python@$(mise current python)" \
+                "java@$(mise current java)" \
+                "kotlin@$(mise current kotlin)" \
+                "gradle@$(mise current gradle)" \
+                "rust@$(mise current rust)"
+
+# JAVA_HOME, resolved to the mise install rather than left to the shims.
+#
+# `ENV`, not a compose value, for the reason docker-compose.yml spells out: this
+# is not per-environment tunable. Everything JVM here — Gradle, the Kotlin
+# language server, any `java` a tool forks — reads JAVA_HOME before it looks at
+# PATH, and a container without it silently falls back to whatever the base
+# image has (nothing) or to a shim that cannot resolve.
+#
+# Points at mise's floating `-latest` alias symlink, matching the SonarLint
+# paths in devcontainer.json, so bumping JAVA_VERSION does not have to be
+# re-typed here. The tradeoff is the same one documented there: a change to
+# mise's on-disk layout breaks this silently.
+ENV JAVA_HOME="/home/vscode/.local/share/mise/installs/java/graalvm-community-latest"
+
 # pnpm is NOT a mise tool: package.json pins it via `packageManager`
 # (pnpm@11.20.0) and Corepack — shipped with the Node mise installs —
 # materializes exactly that version. A second pin would drift from it.

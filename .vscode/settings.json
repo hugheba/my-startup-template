@@ -24,7 +24,8 @@
       "source.organizeImports": "explicit"
     }
   },
-  "python.defaultInterpreterPath": "scripts/.venv/bin/python",
+  "python.defaultInterpreterPath": "${workspaceFolder}/scripts/.venv/bin/python",
+  "python.envFile": "",
   "files.exclude": {
     "**/node_modules": true,
     "**/.turbo": true,

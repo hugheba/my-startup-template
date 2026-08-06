@@ -68,3 +68,9 @@ pnpm-debug.log*
 # it references other organisations' internal repos and standards and must not
 # be published from this public template.
 DEVCONTAINER.md
+
+# Claude Code's per-machine permission grants. Machine-local by design: the
+# allowlist references absolute container paths and reflects one operator's
+# choices, so committing it would push those grants onto everyone who clones.
+# `.claude/settings.json` (checked in) is the shared config; this is not.
+.claude/settings.local.json

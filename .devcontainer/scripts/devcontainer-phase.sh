@@ -127,7 +127,17 @@ run_phase() {
       echo "--- $step"
       start=$SECONDS
       rc=0
-      bash "$path" apply || rc=$?
+      # </dev/null is load-bearing. postCreateCommand runs attached to a TTY,
+      # so a step that asks a question gets one and waits — forever, with no
+      # timeout, and every later step never runs. That is not hypothetical:
+      # corepack and pnpm both prompted here on first boot of a fresh
+      # container, and the phase sat at 002 while 003 never created the Python
+      # venv — which reached the developer not as "postcreate is stuck" but as
+      # an unrelated-looking VS Code "invalid Python interpreter" error, three
+      # steps removed from the cause. Individual steps still declare their own
+      # non-interactive flags; this makes a missed one fail loudly and
+      # locally instead of stalling the whole phase.
+      bash "$path" apply </dev/null || rc=$?
       dur=$((SECONDS - start))
 
       if [ "$rc" -eq 0 ]; then
@@ -153,7 +163,7 @@ run_phase() {
 
     # Checks are diagnostic: a check that fails or crashes never changes the
     # phase's exit code. Only apply failures do.
-    out="$(bash "$path" check 2>&1)" || true
+    out="$(bash "$path" check </dev/null 2>&1)" || true
     [ -n "$out" ] || out="(no output)"
     printf '%s\n' "$out" | sed 's/^/  /'
 

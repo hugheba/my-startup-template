@@ -8,12 +8,18 @@
     "bradlc.vscode-tailwindcss",
     "ms-python.python",
     "charliermarsh.ruff",
+    "vscjava.vscode-java-pack",
+    "redhat.vscode-quarkus",
+    "jetbrains.kotlin-server",
+    "rust-lang.rust-analyzer",
+    "vadimcn.vscode-lldb",
+    "tamasfe.even-better-toml",
+    "sonarsource.sonarlint-vscode",
     "redhat.vscode-yaml",
     "mikestead.dotenv",
     "vivaxy.vscode-conventional-commits",
     "anthropic.claude-code",
-    "github.copilot",
     "github.copilot-chat"
   ],
-  "unwantedRecommendations": []
+  "unwantedRecommendations": ["github.copilot", "rust-lang.rust"]
 }

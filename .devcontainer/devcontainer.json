@@ -49,15 +49,31 @@
   // poststart, not postcreate: the Gortex daemon does not survive a container
   // stop/start, so it has to be brought back up on every boot.
   "postStartCommand": "bash .devcontainer/scripts/devcontainer-phase.sh poststart",
-  "forwardPorts": [3000, 5432, 8080],
+  // THIS IS THE DASHBOARD'S SOURCE OF TRUTH. `scripts/generate-dashboard.mjs`
+  // builds the Homepage tiles from these two keys, so a dev server in ANY
+  // language — Next.js, Quarkus, a Rust binary, FastAPI — gets a tile purely by
+  // being forwarded and labelled here. Nothing else to register.
+  //
+  //   label     required. A forwarded port with no label fails the generator
+  //             rather than appearing as an anonymous tile.
+  //   protocol  "http"/"https" makes the tile clickable and health-monitored.
+  //             Omit it for non-HTTP services, which then render as
+  //             informational tiles — a browser link to Postgres is noise.
+  //
+  // Only standard devcontainer.json fields are used. Extra keys here would work
+  // at runtime but leave a permanent schema warning in this file, so the
+  // generator derives the rest (which container serves a port) from
+  // docker-compose.yml.
+  "forwardPorts": [3000, 5432, 8080, 8081],
   "portsAttributes": {
-    "3000": { "label": "Next.js dev server", "onAutoForward": "notify" },
-    // `silent` for the sidecars: they come up with the container on every
-    // start, so notifying would mean a toast per service every boot for things
-    // that are simply expected to be there. Port 3000 stays on `notify`
-    // because it appears only when you deliberately run `pnpm dev`.
+    "3000": { "label": "Next.js dev server", "protocol": "http", "onAutoForward": "notify" },
+    // `silent` for the rest: they come up with the container on every start, so
+    // notifying would mean a toast per service every boot for things that are
+    // simply expected to be there. Port 3000 stays on `notify` because it
+    // appears only when you deliberately run `pnpm dev`.
     "5432": { "label": "PostgreSQL", "onAutoForward": "silent" },
-    "8080": { "label": "Adminer (database UI)", "onAutoForward": "silent" }
+    "8080": { "label": "Adminer (database UI)", "protocol": "http", "onAutoForward": "silent" },
+    "8081": { "label": "Dev Services (dashboard)", "protocol": "http", "onAutoForward": "silent" }
   },
   "customizations": {
     "vscode": {

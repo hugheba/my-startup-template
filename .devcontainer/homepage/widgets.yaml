@@ -1,0 +1,6 @@
+# Header widgets. Deliberately minimal — `resources` reads the container's own
+# cgroup, so it needs no network and no Docker socket.
+- resources:
+    cpu: true
+    memory: true
+    disk: /

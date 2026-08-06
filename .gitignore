@@ -81,6 +81,12 @@ DEVCONTAINER.*.md
 # `.claude/settings.json` (checked in) is the shared config; this is not.
 .claude/settings.local.json
 
+# Homepage writes these into its own config directory at runtime — a logs dir
+# and a kubernetes.yaml it generates whether or not k8s is used. The YAML we
+# author beside them IS committed; these are the container's scratch space.
+.devcontainer/homepage/logs/
+.devcontainer/homepage/kubernetes.yaml
+
 # Session handoff scratch — notes written before a container rebuild.
 # Deliberately in the repo rather than /tmp because the repo is the bind mount
 # and therefore the only thing that survives the rebuild. Delete once the work

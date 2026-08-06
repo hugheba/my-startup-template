@@ -1,0 +1,9 @@
+# Intentionally empty. Docker label auto-discovery would require mounting
+# /var/run/docker.sock into this container, which hands a dashboard read/write
+# control over every container on the host — including the one you are working
+# in. The tiles below are declared in services.yaml instead, which costs a
+# generated file and gives up live container start/stop status.
+#
+# To opt in: uncomment, and add the socket mount in docker-compose.yml.
+# local:
+#   socket: /var/run/docker.sock

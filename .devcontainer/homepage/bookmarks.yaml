@@ -1,0 +1,5 @@
+# Bookmarks are static links that are not services — no status dot, no monitor.
+- Project:
+    - AGENTS.md:
+        - abbr: AG
+          href: https://github.com/hugheba/my-startup-template/blob/main/AGENTS.md

@@ -133,7 +133,8 @@ Where the rule applies today:
 ### Sidecar images
 
 **A sidecar is a dependency.** The services in `.devcontainer/docker-compose.yml` — today Postgres
-and Adminer, see [Database](#database) below — are pinned by **digest**, never by tag. A tag is
+and Adminer (see [Database](#database)) plus Homepage (see [Dev dashboard](#dev-dashboard)) — are
+pinned by **digest**, never by tag. A tag is
 mutable: `postgres:16` is a different filesystem this week than last, and the whole point of this
 section is that two people on the same commit get the same bytes. `:latest` is the same failure with
 the volume turned up.
@@ -155,7 +156,7 @@ digest in a YAML file is a second place versions live.
 Resolve a digest with `docker buildx imagetools inspect <image>:<tag>` and keep the tag as a trailing
 comment, exactly as workflow `uses:` refs do, so the automation can bump it later.
 
-> The gate reports counts rather than a bare "passed" — currently `2 container image(s) across 1 compose file(s)`. That is deliberate. A gate over an empty set passes for the same reason a working one does, and the count is the only thing that tells those two states apart. It earned its keep before there was anything to check: the first version globbed `**/docker-compose*.yml`, which Node's `globSync` never descends into `.devcontainer/` for, and the printed `0 compose file(s)` is what exposed it.
+> The gate reports counts rather than a bare "passed" — currently `3 container image(s) across 1 compose file(s)`. That is deliberate. A gate over an empty set passes for the same reason a working one does, and the count is the only thing that tells those two states apart. It earned its keep before there was anything to check: the first version globbed `**/docker-compose*.yml`, which Node's `globSync` never descends into `.devcontainer/` for, and the printed `0 compose file(s)` is what exposed it.
 
 **Every pnpm setting lives in `pnpm-workspace.yaml`.** As of pnpm 11 the `pnpm` field in `package.json` is not read at all, and `.npmrc` is restricted to auth and registry credentials. The two failure modes are not equal, and the difference matters: a leftover `pnpm` field in `package.json` produces a warning naming the ignored keys, but a setting left in `.npmrc` is dropped in **complete silence** — `node-linker=isolated` there changes nothing and says nothing. That silent case is the dangerous one, because `.npmrc` is where `nodeLinker: hoisted` used to live and that setting is load-bearing for AWS Amplify SSR deploys. `.npmrc` is therefore kept as an empty file whose only content is a comment saying where settings go.
 
@@ -173,6 +174,36 @@ Two deliberate exemptions — these are policy, not oversights, so do not "fix" 
 - **VS Code extensions** (`.vscode/extensions.json`, `.devcontainer/devcontainer.json`) carry no version at all — they are marketplace IDs, and the marketplace always installs latest. They are editor conveniences, not build inputs. What matters there is that the two lists agree, which `pnpm verify:vscode` enforces in CI.
 
 `peerDependencies` are pinned exactly too, which is unusual — normally a peer range is what makes a package composable. It is correct here only because every `packages/*` is `private: true` and consumed solely via `workspace:*`, so exact peers enforce version lockstep across the monorepo. **If you ever publish one of these packages to npm, widen its peer ranges first.**
+
+## Dev dashboard
+
+**<http://localhost:8081> lists everything this container runs.** One page of tiles — every forwarded port, with a live up/down dot for the HTTP ones. It is a sidecar ([Homepage](https://gethomepage.dev)), not an editor extension, so it works in Codespaces, in a plain browser, and for anyone not using VS Code.
+
+**Tiles are generated from `forwardPorts` + `portsAttributes` in `.devcontainer/devcontainer.json`** — not from `package.json`. That is the point: this container runs Node, JVM (Quarkus), Rust and Python apps, and `forwardPorts` is the one place all of them declare a port in the same syntax. A Quarkus dev server gets a tile by being forwarded and labelled, with nothing Node-specific involved.
+
+To add a service to the dashboard:
+
+```jsonc
+// .devcontainer/devcontainer.json
+"forwardPorts": [3000, 5432, 8080, 8081, 9000],
+"portsAttributes": {
+  "9000": { "label": "Quarkus dev", "protocol": "http" }
+}
+```
+
+```bash
+pnpm dashboard:sync   # regenerate; commit the result
+```
+
+- **`label` is required.** A forwarded port without one fails the generator rather than becoming an anonymous tile.
+- **`protocol: "http"` makes a tile clickable and monitored.** Omit it for non-HTTP services — a browser link to Postgres is noise, so it renders as an informational tile instead.
+- **Only standard devcontainer.json fields are used.** Custom keys would work at runtime but leave a permanent schema warning in that file, so the generator derives which container serves a port from `docker-compose.yml` instead.
+- **`pnpm verify:dashboard` gates drift.** The generated `services.yaml` is committed, so it can go stale the moment someone forwards a port without regenerating — and a stale dashboard is worse than none, because it is confidently wrong about where a service lives.
+- **Anything that is not a forwarded port** goes in `.devcontainer/homepage/services.extra.yaml`, appended verbatim and never clobbered by a regeneration.
+
+Two details that look like bugs if you meet them cold. Each tile carries **two different hosts**: `href` is opened by _your browser_, outside the container network, so it is `localhost:<port>`; `siteMonitor` is fetched by the _Homepage container_, inside that network, where `localhost` means Homepage itself — so it must use the Compose service name. Get them the wrong way round and the tile either never opens or sits permanently grey. And the config volume is **not** mounted read-only: Homepage writes a `logs/` directory and a `kubernetes.yaml` into its own config dir on boot, and mounted `:ro` it crash-loops on `ENOENT: mkdir '/app/config/logs'` while still answering HTTP — so it looks up and renders nothing. Both artefacts are gitignored.
+
+**Why this and not a drag-and-drop dashboard** (Homarr, Dashy): the board is committed YAML, so it ships with the template, arrives populated in a fork, and shows up in the diff of the PR that changed it. A board stored in a container database is none of those and starts empty for everyone who clones. Homarr is the better choice if you want each developer arranging their own layout — that is its native model, and YAML would fight you.
 
 ## Database
 

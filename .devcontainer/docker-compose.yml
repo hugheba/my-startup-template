@@ -136,6 +136,43 @@ services:
       db:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  # Homepage — the dev springboard at http://localhost:8081
+  # ---------------------------------------------------------------------------
+  # One page listing everything this stack runs, so a newcomer does not have to
+  # read docker-compose.yml to find the database UI. A container rather than an
+  # editor extension, so it works in Codespaces, in a plain browser, and for
+  # anyone not using VS Code.
+  #
+  # Config is committed YAML in .devcontainer/homepage/, which is the reason
+  # this and not a dashboard whose board lives in its own database: the board
+  # ships with the template, arrives populated in a fork, and shows up in the
+  # diff of the PR that changed it.
+  homepage:
+    image: ghcr.io/gethomepage/homepage:${HOMEPAGE_IMAGE_TAG}@${HOMEPAGE_IMAGE_DIGEST}
+    environment:
+      # REQUIRED. Without it Homepage refuses the request with a host-validation
+      # error rather than rendering — it is a same-origin protection, and the
+      # value must include the port you actually browse on. Both entries are
+      # needed: the first is the host your browser sends, the second is what a
+      # sibling container uses.
+      HOMEPAGE_ALLOWED_HOSTS: 'localhost:8081,127.0.0.1:8081,homepage:3000'
+    volumes:
+      # NOT `:ro`. Homepage writes a logs/ directory and generates a
+      # kubernetes.yaml inside its own config dir on boot; mounted read-only it
+      # crash-loops on `ENOENT: mkdir '/app/config/logs'` while still answering
+      # HTTP, so it looks up and renders nothing. Both artefacts are gitignored.
+      - ./homepage:/app/config
+      # Deliberately NO /var/run/docker.sock. Label auto-discovery would need it,
+      # and it hands a dashboard read/write control over every container on the
+      # host — including the one you are working in. The tiles are declared in
+      # services.yaml instead; see homepage/docker.yaml to opt in.
+    # Homepage listens on 3000 INTERNALLY, which is the Next.js dev port. Only
+    # the host side is remapped — 8081 outside, 3000 inside — so the two never
+    # collide, and `app:3000` still means the dev server.
+    ports:
+      - '127.0.0.1:8081:3000'
+
 volumes:
   claude-config:
   gortex-store:

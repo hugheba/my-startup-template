@@ -69,8 +69,20 @@ pnpm-debug.log*
 # be published from this public template.
 DEVCONTAINER.md
 
+# Derived exports of the above, staged here only because this directory is the
+# devcontainer's bind mount and therefore the way a file reaches the host.
+# Same reason as DEVCONTAINER.md, more so: these are written FOR another
+# organisation's repo. Move them out and delete the copy.
+DEVCONTAINER.*.md
+
 # Claude Code's per-machine permission grants. Machine-local by design: the
 # allowlist references absolute container paths and reflects one operator's
 # choices, so committing it would push those grants onto everyone who clones.
 # `.claude/settings.json` (checked in) is the shared config; this is not.
 .claude/settings.local.json
+
+# Session handoff scratch — notes written before a container rebuild.
+# Deliberately in the repo rather than /tmp because the repo is the bind mount
+# and therefore the only thing that survives the rebuild. Delete once the work
+# it describes has landed.
+.handoff/

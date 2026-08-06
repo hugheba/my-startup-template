@@ -36,14 +36,19 @@ services:
       # The repo itself. `cached` trades strict host↔container write ordering
       # for throughput, which matters for node_modules-heavy trees on macOS.
       - ..:/workspaces/my-startup-template:cached
-      # Named volumes so Claude Code's and Gortex's state survive a rebuild.
-      # The image pre-creates both paths owned by vscode: Docker seeds a new
-      # named volume from the image directory's ownership, and an unseeded
-      # volume mounts root:root, leaving tools running as vscode unable to
-      # write. ~/.gortex is a machine-local sqlite graph + model cache, never
-      # repo content, so it is deliberately not on the bind mount.
+      # Named volumes so Claude Code's, Gortex's and Gradle's state survive a
+      # rebuild. The image pre-creates all three paths owned by vscode: Docker
+      # seeds a new named volume from the image directory's ownership, and an
+      # unseeded volume mounts root:root, leaving tools running as vscode unable
+      # to write. All three are machine-local caches — a sqlite graph + model
+      # cache, and a dependency cache — never repo content, so none of them is
+      # on the bind mount.
       - claude-config:/home/vscode/.claude
       - gortex-store:/home/vscode/.gortex
+      # Without this, every rebuild re-downloads the full dependency graph of any
+      # JVM module in the tree. Correctness-neutral: Gradle re-resolves from the
+      # same lock either way, so losing it costs download time and nothing else.
+      - gradle-cache:/home/vscode/.gradle
 
     # Keep the container alive: the devcontainer attaches to it rather than
     # running an app process. Without this the container exits immediately and
@@ -58,3 +63,4 @@ services:
 volumes:
   claude-config:
   gortex-store:
+  gradle-cache:

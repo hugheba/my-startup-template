@@ -172,7 +172,15 @@ RUN mise trust && mise install
 # the workspace), the Gradle daemon, which forks a fresh JVM, and rust-analyzer,
 # which shells out to `cargo` for metadata and check runs. Without a global
 # default each hits the empty-stdout failure described above.
+#
+# `node` is here despite Node being the repo's own runtime, and it is the easiest
+# one to leave out by accident — everything that exercises it day to day runs
+# with the repo as its cwd, where mise.toml answers, so the gap is invisible from
+# a normal terminal. It shows up only from outside: `cd /tmp && node --version`
+# fails with `No version is set for shim: node`, and so does anything the editor
+# or a global npm CLI forks from its own working directory.
 RUN mise use -g "python@$(mise current python)" \
+                "node@$(mise current node)" \
                 "java@$(mise current java)" \
                 "kotlin@$(mise current kotlin)" \
                 "gradle@$(mise current gradle)" \
@@ -220,13 +228,14 @@ ENV DISABLE_AUTOUPDATER=1
 # belt-and-suspenders) so the on-disk state agrees with the env var.
 ENV GORTEX_TELEMETRY=0
 
-# Pre-create Claude Code's and Gortex's state dirs owned by vscode. If a named
-# volume is later mounted at either path to persist state across rebuilds,
-# Docker initializes it from the image directory's ownership — an unseeded
-# volume would mount root:root and leave the tools, running as vscode, unable to
-# write. ~/.gortex holds the sqlite graph store and downloaded models: a
-# machine-local cache, never the repo.
-RUN mkdir -p /home/vscode/.claude /home/vscode/.gortex
+# Pre-create the state dirs that named volumes mount over, owned by vscode. If a
+# named volume is later mounted at any of these paths to persist state across
+# rebuilds, Docker initializes it from the image directory's ownership — an
+# unseeded volume would mount root:root and leave the tools, running as vscode,
+# unable to write. ~/.gortex holds the sqlite graph store and downloaded models;
+# ~/.gradle holds the Gradle dependency cache and its daemon state. Both are
+# machine-local caches, never the repo.
+RUN mkdir -p /home/vscode/.claude /home/vscode/.gortex /home/vscode/.gradle
 
 # Liveness probe. `node` resolves via the mise shim on PATH (set above); a
 # working node means the pinned toolchain is usable inside the dev container.

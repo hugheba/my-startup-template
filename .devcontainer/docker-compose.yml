@@ -60,7 +60,88 @@ services:
     # apply to anyone running the image outside this file. Settings that must
     # not be optional belong in the image.
 
+    # Start the datastore with the workspace, and wait for it to be ACCEPTING
+    # CONNECTIONS rather than merely running. `service_started` would let the
+    # app container come up while Postgres is still doing first-boot initdb,
+    # so the first query of a session fails and the second succeeds — the kind
+    # of intermittent failure nobody reproduces on demand.
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Postgres — the application database
+  # ---------------------------------------------------------------------------
+  db:
+    # Digest-pinned; the tag beside it is what Renovate reads. Both live in
+    # .devcontainer/.env, and `pnpm verify:deps` fails the build if this ever
+    # becomes a bare tag.
+    image: postgres:${POSTGRES_IMAGE_TAG}@${POSTGRES_IMAGE_DIGEST}
+    environment:
+      # `postgres` for user AND database is not laziness — it is what Supabase
+      # gives you. A Supabase connection string ends in `/postgres`, so keeping
+      # the same name locally means local and hosted differ ONLY in host and
+      # password. The same migrations, dumps and DATABASE_URL shape work
+      # against both with no rename step.
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Deterministic collation. Left to the host locale, index ordering for
+      # text columns can differ between a developer's machine and CI, which
+      # shows up as tests that pass locally and fail in CI on ORDER BY.
+      POSTGRES_INITDB_ARGS: '--locale=C.UTF-8 --encoding=UTF8'
+    # `pg_isready -U postgres` and not a bare `pg_isready`: during first boot
+    # initdb briefly runs a temporary server on a unix socket that answers
+    # ready, so an unauthenticated check can pass before the real one is up.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    volumes:
+      # Named volume, NOT a bind mount into the repo. Postgres data files are
+      # platform- and version-specific, would be catastrophic to commit, and on
+      # macOS a bind-mounted data directory is both slow and prone to fsync
+      # semantics Postgres does not expect.
+      - pgdata:/var/lib/postgresql/data
+    # Bound to loopback only. Without the 127.0.0.1 prefix Docker publishes on
+    # 0.0.0.0 and, on some setups, punches through the host firewall — an open
+    # Postgres on the network with a password of "postgres".
+    ports:
+      - '127.0.0.1:5432:5432'
+
+  # ---------------------------------------------------------------------------
+  # Adminer — web UI for the database, at http://localhost:8080
+  # ---------------------------------------------------------------------------
+  # A container rather than an editor extension, so it works the same in
+  # Codespaces, in the browser, and for anyone not using VS Code — and carries
+  # no licence tier.
+  #
+  # Drivers built into this image, enumerated from its own login page rather
+  # than from the marketing copy: MySQL/MariaDB, PostgreSQL, SQLite, MS SQL,
+  # Oracle (beta). SQL only. Elasticsearch, MongoDB and Redis are Adminer
+  # PLUGINS — they need mounting into /var/www/html/plugins-enabled, so adding
+  # one of those datastores later is a real step, not a free ride.
+  adminer:
+    image: adminer:${ADMINER_IMAGE_TAG}@${ADMINER_IMAGE_DIGEST}
+    environment:
+      # Pre-fills the login form's server field so the only thing to type is
+      # the password. `db` is the compose service name above, which is also its
+      # hostname on the default network.
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - '127.0.0.1:8080:8080'
+    depends_on:
+      db:
+        condition: service_healthy
+
 volumes:
   claude-config:
   gortex-store:
   gradle-cache:
+  # Survives `docker compose down` and a devcontainer rebuild; removed only by
+  # an explicit `docker compose down -v`. That is the property you want while
+  # iterating on migrations, and the command to remember when you want a
+  # genuinely empty database back.
+  pgdata:

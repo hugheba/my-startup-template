@@ -49,9 +49,15 @@
   // poststart, not postcreate: the Gortex daemon does not survive a container
   // stop/start, so it has to be brought back up on every boot.
   "postStartCommand": "bash .devcontainer/scripts/devcontainer-phase.sh poststart",
-  "forwardPorts": [3000],
+  "forwardPorts": [3000, 5432, 8080],
   "portsAttributes": {
-    "3000": { "label": "Next.js dev server", "onAutoForward": "notify" }
+    "3000": { "label": "Next.js dev server", "onAutoForward": "notify" },
+    // `silent` for the sidecars: they come up with the container on every
+    // start, so notifying would mean a toast per service every boot for things
+    // that are simply expected to be there. Port 3000 stays on `notify`
+    // because it appears only when you deliberately run `pnpm dev`.
+    "5432": { "label": "PostgreSQL", "onAutoForward": "silent" },
+    "8080": { "label": "Adminer (database UI)", "onAutoForward": "silent" }
   },
   "customizations": {
     "vscode": {

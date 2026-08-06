@@ -104,7 +104,7 @@ Anything the OS must provide — `build-essential`, `zlib1g-dev` (GraalVM `nativ
 
 **Every dependency that feeds a build or ships to users is pinned to an exact version. No `^`, no `~`, no `>=`, no `*`, no `latest`, no floating tags.** A range means two people who run the same install on the same commit can get different bytes, and "it broke and nothing changed" becomes unanswerable. Two surfaces are exempt by policy — they are listed at the end of this section.
 
-This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including the `overrides` values in `pnpm-workspace.yaml` and the `npx` invocations in `.mcp.json` — and on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA.
+This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including the `overrides` values in `pnpm-workspace.yaml` and the `npx` invocations in `.mcp.json` — on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA, and on any `image:` in a Compose file that is not digest-pinned.
 
 When adding a dependency:
 
@@ -128,6 +128,34 @@ Where the rule applies today:
 | devcontainer OS packages             | apt version pins in `.devcontainer/Dockerfile`             |
 | GitHub Actions `uses:` refs          | 40-char commit SHA + `pnpm verify:deps` gate               |
 | the gitleaks scanner image           | image digest (`@sha256:…`), not a tag                      |
+| Compose service images (sidecars)    | image digest + `pnpm verify:deps` gate — see below         |
+
+### Sidecar images
+
+**A sidecar is a dependency.** The services in `.devcontainer/docker-compose.yml` — today Postgres
+and Adminer, see [Database](#database) below — are pinned by **digest**, never by tag. A tag is
+mutable: `postgres:16` is a different filesystem this week than last, and the whole point of this
+section is that two people on the same commit get the same bytes. `:latest` is the same failure with
+the volume turned up.
+
+Two forms pass the gate, and the second is the house style:
+
+```yaml
+services:
+  db:
+    image: postgres@sha256:<64 hex> # pinned inline
+  cache:
+    image: redis@${REDIS_IMAGE_DIGEST} # pinned in .devcontainer/.env
+```
+
+Prefer the variable form. Compose already auto-loads `.devcontainer/.env`, so the digest lands beside
+every other pin in the one manifest a reviewer reads, and Renovate can reach it there — an inline
+digest in a YAML file is a second place versions live.
+
+Resolve a digest with `docker buildx imagetools inspect <image>:<tag>` and keep the tag as a trailing
+comment, exactly as workflow `uses:` refs do, so the automation can bump it later.
+
+> The gate reports counts rather than a bare "passed" — currently `2 container image(s) across 1 compose file(s)`. That is deliberate. A gate over an empty set passes for the same reason a working one does, and the count is the only thing that tells those two states apart. It earned its keep before there was anything to check: the first version globbed `**/docker-compose*.yml`, which Node's `globSync` never descends into `.devcontainer/` for, and the printed `0 compose file(s)` is what exposed it.
 
 **Every pnpm setting lives in `pnpm-workspace.yaml`.** As of pnpm 11 the `pnpm` field in `package.json` is not read at all, and `.npmrc` is restricted to auth and registry credentials. The two failure modes are not equal, and the difference matters: a leftover `pnpm` field in `package.json` produces a warning naming the ignored keys, but a setting left in `.npmrc` is dropped in **complete silence** — `node-linker=isolated` there changes nothing and says nothing. That silent case is the dangerous one, because `.npmrc` is where `nodeLinker: hoisted` used to live and that setting is load-bearing for AWS Amplify SSR deploys. `.npmrc` is therefore kept as an empty file whose only content is a comment saying where settings go.
 
@@ -145,6 +173,26 @@ Two deliberate exemptions — these are policy, not oversights, so do not "fix" 
 - **VS Code extensions** (`.vscode/extensions.json`, `.devcontainer/devcontainer.json`) carry no version at all — they are marketplace IDs, and the marketplace always installs latest. They are editor conveniences, not build inputs. What matters there is that the two lists agree, which `pnpm verify:vscode` enforces in CI.
 
 `peerDependencies` are pinned exactly too, which is unusual — normally a peer range is what makes a package composable. It is correct here only because every `packages/*` is `private: true` and consumed solely via `workspace:*`, so exact peers enforce version lockstep across the monorepo. **If you ever publish one of these packages to npm, widen its peer ranges first.**
+
+## Database
+
+**Postgres runs as a sidecar and is already up when your terminal opens.** Nothing to start by hand; the `app` container waits on its healthcheck, so the first query of a session cannot race first-boot `initdb`.
+
+| Thing                         | Value                                                     |
+| ----------------------------- | --------------------------------------------------------- |
+| Host **inside** the container | `db` (the Compose service name)                           |
+| Host **from your machine**    | `localhost:5432` (bound to loopback only)                 |
+| User / password               | `postgres` / `postgres` — local only, not a secret        |
+| Database name                 | `postgres`                                                |
+| Connection string             | `postgresql://postgres:postgres@db:5432/postgres`         |
+| Web UI                        | <http://localhost:8080> (Adminer, also a sidecar)         |
+| Data                          | Named volume `pgdata`; wipe with `docker compose down -v` |
+
+**Postgres major 17 tracks Supabase**, which is this template's recommended hosted path — their self-hosted default moved 15 → 17 in June 2026. Matching majors means the same SQL, extensions and dump/restore behaviour in both places. Bump it **by hand**, together with whatever Supabase runs: a Postgres major upgrade is a data migration, not a version bump, which is why that pin carries no Renovate annotation.
+
+**The database is named `postgres` on purpose.** A Supabase connection string ends in `/postgres`, so keeping the name locally means local and hosted differ only in host and password — same migrations, same dumps, same `DATABASE_URL` shape, no rename step. Do not rename it per environment; the environment is distinguished by the host, not by the database name.
+
+**Adminer is a container, not an editor extension**, so it works identically in Codespaces, in a browser, and for anyone not using VS Code, and carries no licence tier. Verified driver list for the pinned image, read off its own login page: **MySQL/MariaDB, PostgreSQL, SQLite, MS SQL, Oracle (beta)**. Elasticsearch, MongoDB and Redis are **plugins**, not built in — they mount into `/var/www/html/plugins-enabled` and are a real step to add. No free tool currently covers Postgres + Elasticsearch + Redis in one UI; `dbgate/dbgate` (GPL-3) is the alternative if Redis and MongoDB matter more than Elasticsearch.
 
 ## Commands cheatsheet
 

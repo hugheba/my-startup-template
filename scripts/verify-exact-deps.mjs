@@ -107,6 +107,76 @@ for (const [input, want] of USES_CASES) {
   }
 }
 
+// Container images are dependencies too, and they were the one surface with no
+// gate at all: a sidecar added as `image: postgres:16` — or `:latest` — would
+// pass every check in this repo, in a codebase whose whole premise is that a
+// moving tag is unacceptable. A tag is mutable; a digest is not, and "it broke
+// and nothing changed" is exactly as unanswerable for a database as for a
+// package.
+//
+// TWO ACCEPTED FORMS, both immutable at the point the container starts:
+//   image: postgres@sha256:<64 hex>          — pinned inline
+//   image: postgres@${POSTGRES_IMAGE_DIGEST} — pinned in .devcontainer/.env
+// The second is the house style (see the Dockerfile's FROM) and is why this
+// gate cannot simply demand a literal digest: Compose resolves the variable
+// from the same one-manifest .env that carries every other pin, and that file
+// is what a reviewer reads.
+//
+// A bare `image: name` with no `@` at all is a floating `:latest` by omission —
+// the worst case, and the one that reads as harmless.
+const IMAGE = /^\s*(?:-\s+)?image:\s*['"]?([^'"#\s]+)/;
+// No `/i` flag: it would make `[A-Za-z_]` self-duplicating, and the hex class
+// below states both cases explicitly instead. Digests are conventionally
+// lowercase, but a hand-pasted uppercase one is still a valid digest.
+const IMAGE_PINNED = /@(?:sha256:[0-9a-fA-F]{64}|\$\{[A-Za-z_]\w*\})$/;
+
+// Same reasoning as DLX_CASES and USES_CASES: a pattern that quietly stops
+// matching reports zero violations, which is indistinguishable from a clean
+// repo. Each `null` is a false-positive guard; each pair is a shape that must
+// keep matching.
+const IMAGE_CASES = [
+  ['    image: postgres@sha256:' + 'a'.repeat(64), 'postgres@sha256:' + 'a'.repeat(64)],
+  ['    image: postgres:16', 'postgres:16'],
+  ['  image: "ghcr.io/o/r/devcontainer:latest"', 'ghcr.io/o/r/devcontainer:latest'],
+  ['    image: postgres@${POSTGRES_IMAGE_DIGEST}', 'postgres@${POSTGRES_IMAGE_DIGEST}'],
+  ['    # image: jaegertracing/all-in-one:1.60', null],
+  ['      run: echo image: not-a-service', null],
+];
+
+for (const [input, want] of IMAGE_CASES) {
+  const m = IMAGE.exec(input);
+  const got = m ? m[1] : null;
+  if (got !== want) {
+    console.error(
+      `verify-exact-deps.mjs: the IMAGE pattern is broken — it is no longer detecting what it claims to.\n` +
+        `  input:    ${input}\n  expected: ${want}\n  got:      ${got}\n` +
+        `Fix the pattern before trusting this gate; as-is it can pass while unpinned images exist.`,
+    );
+    process.exit(2);
+  }
+}
+
+// And the verdict half, which is the part that actually decides pass/fail.
+const IMAGE_VERDICT_CASES = [
+  ['postgres@sha256:' + 'a'.repeat(64), true],
+  ['postgres@${POSTGRES_IMAGE_DIGEST}', true],
+  ['postgres:16', false],
+  ['ghcr.io/o/r/devcontainer:latest', false],
+  ['postgres', false],
+  ['postgres@sha256:tooshort', false],
+];
+
+for (const [ref, want] of IMAGE_VERDICT_CASES) {
+  if (IMAGE_PINNED.test(ref) !== want) {
+    console.error(
+      `verify-exact-deps.mjs: IMAGE_PINNED disagrees with its own test case.\n` +
+        `  ref: ${ref}\n  expected pinned=${want}\n` +
+        'Fix it before trusting this gate.',
+    );
+    process.exit(2);
+  }
+}
+
 // pnpm overrides pin transitive dependencies; a range here defeats the point of
 // the override. The KEY may be a range (it is a selector, e.g. "postcss@<8.5.10");
 // only the VALUE it resolves to must be exact.
@@ -228,6 +298,7 @@ for (const file of workflows.sort()) {
 // Absent file means no MCP servers, which is legitimate for a stripped-down
 // fork. Present but unreadable is not: that is the silent-success case the
 // overrides cross-check below also guards against.
+const DEVCONTAINER_JSON = '.devcontainer/devcontainer.json';
 const MCP = '.mcp.json';
 let mcpServers = {};
 if (existsSync(MCP)) {
@@ -249,6 +320,64 @@ for (const [name, server] of Object.entries(mcpServers)) {
     if (!EXACT.test(spec)) violations.push(`${MCP}  mcpServers.${name} runs ${tool}@${spec}`);
   }
 }
+
+// Explicit patterns, NOT `**/`. Node's globSync does not descend into dotted
+// directories — not even with `{ dot: true }` — so `**/docker-compose*.yml`
+// silently misses `.devcontainer/`, which is the one place a compose file is
+// guaranteed to live. The first version of this gate did exactly that and
+// reported "0 compose files" against a repo that has one; only the count in the
+// success line gave it away. Hardcoding the directory matches how this file
+// already finds `.github/workflows/` and `.mcp.json`.
+const COMPOSE_GLOBS = [
+  '{docker-compose,compose}*.{yml,yaml}',
+  '.devcontainer/{docker-compose,compose}*.{yml,yaml}',
+  '*/{docker-compose,compose}*.{yml,yaml}',
+];
+const composeFiles = [...new Set(COMPOSE_GLOBS.flatMap((g) => globSync(g)))]
+  .filter((f) => !skip(f))
+  .sort();
+
+// Cross-check against the authority: devcontainer.json names its own compose
+// file, so if that file is not in the set above, the globs are wrong rather
+// than the repo being empty. Same fail-closed reasoning as the overrides check
+// below — refuse to report success on a file this gate did not actually read.
+if (existsSync(DEVCONTAINER_JSON)) {
+  const declared = /"dockerComposeFile"\s*:\s*"([^"]+)"/.exec(
+    readFileSync(DEVCONTAINER_JSON, 'utf8').replace(/(^|[^:])\/\/.*$/gm, '$1'),
+  );
+  if (declared) {
+    const expected = `.devcontainer/${declared[1].replace(/^\.\//, '')}`;
+    if (!composeFiles.includes(expected)) {
+      console.error(
+        `verify-exact-deps.mjs: ${DEVCONTAINER_JSON} declares dockerComposeFile "${declared[1]}",\n` +
+          `  which resolves to ${expected}, but the compose globs did not collect it.\n` +
+          `  collected: ${composeFiles.length ? composeFiles.join(', ') : '(none)'}\n` +
+          'Refusing to report success on container images this gate did not actually read.',
+      );
+      process.exit(2);
+    }
+  }
+}
+
+let imageRefs = 0;
+
+for (const file of composeFiles) {
+  readFileSync(file, 'utf8')
+    .split('\n')
+    .forEach((line, i) => {
+      const m = IMAGE.exec(line);
+      if (!m) return;
+      imageRefs++;
+      if (!IMAGE_PINNED.test(m[1])) violations.push(`${file}:${i + 1}  image: ${m[1]}`);
+    });
+}
+
+// Zero images is the correct answer today — this repo builds its one service
+// from a Dockerfile and runs no sidecars. It is still REPORTED rather than
+// assumed, because a gate over an empty set passes for the same reason a
+// working one does, and the day someone deletes the last service is the day
+// this quietly stops meaning anything. The count in the success line is what
+// tells those two states apart.
 
 const WORKSPACE = 'pnpm-workspace.yaml';
 const workspaceYaml = readFileSync(WORKSPACE, 'utf8');
@@ -286,5 +415,6 @@ if (violations.length > 0) {
 
 console.log(
   `All dependency specifiers are exact (${files.length} package.json, ${workflows.length} workflow files, ` +
-    `${Object.keys(overrides).length} pnpm overrides, ${Object.keys(mcpServers).length} MCP servers checked).`,
+    `${Object.keys(overrides).length} pnpm overrides, ${Object.keys(mcpServers).length} MCP servers, ` +
+    `${imageRefs} container image(s) across ${composeFiles.length} compose file(s) checked).`,
 );

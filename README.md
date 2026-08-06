@@ -24,6 +24,8 @@ The whole toolchain is declared in [`mise.toml`](mise.toml) and installed by [mi
 
 pnpm comes from Corepack (pinned by `packageManager`), Docker-in-Docker is available inside the container, and all 20 recommended VS Code extensions (ESLint, Prettier, Tailwind, Ruff, Java, Kotlin, Quarkus, rust-analyzer, CodeLLDB, Claude Code, Copilot Chat, ...) install automatically.
 
+> 🗄️ **A PostgreSQL database is already running.** It starts with the container — nothing to install or launch. Connect from your code with `postgresql://postgres:postgres@db:5432/postgres`, or browse it in your browser at **<http://localhost:8080>** (server `db`, user `postgres`, password `postgres`). It is Postgres 17, matching what [Supabase](https://supabase.com) runs, so moving to hosted later changes only the host and password. Details in [AGENTS.md](AGENTS.md#database).
+
 > 🧩 **The editor will ask you one thing on first launch** — whether to use the workspace TypeScript version. Click **Allow**. That prompt, and every other first-run question (recommended extensions, the JVM servers' warm-up, the Python interpreter), is explained in [`docs/vscode-setup.md`](./docs/vscode-setup.md), along with what silently degrades if you dismiss one.
 
 First boot takes ~10 minutes because that image is built from scratch; later starts take seconds. Pushes to `main` publish the same image to GHCR (`.github/workflows/devcontainer.yml`), so you can swap `build` for `image:` in `.devcontainer/devcontainer.json` and pull it instead.

@@ -160,12 +160,12 @@
         "java.import.gradle.java.home": "/home/vscode/.local/share/mise/installs/java/graalvm-community-latest",
         // GRADLE_USER_HOME — the dependency cache and daemon registry. Already
         // the default, set explicitly because it is the one Java path that is
-        // NOT under a mise install and therefore easy to miss: it lives in the
-        // container's home, which is NOT a named volume in docker-compose.yml
-        // (only ~/.claude and ~/.gortex are), so it is rebuilt from scratch on
-        // every container rebuild. That is correctness-neutral and purely a
-        // re-download cost — see the note in the summary if that becomes
-        // annoying enough to warrant a volume.
+        // NOT under a mise install and therefore easy to miss. It is backed by
+        // the `gradle-cache` named volume in docker-compose.yml, so it survives
+        // a container rebuild; wiping it needs an explicit `docker compose down
+        // -v`. If you change this path, move the volume mount with it — a
+        // mismatch silently costs a full re-download on every rebuild and
+        // nothing reports it.
         "java.import.gradle.user.home": "/home/vscode/.gradle",
         // Explicit because the whole Gradle strategy here rests on it: the
         // wrapper a project commits wins over anything this file could name.

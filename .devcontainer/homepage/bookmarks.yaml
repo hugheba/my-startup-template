@@ -1,5 +1,13 @@
 # Bookmarks are static links that are not services — no status dot, no monitor.
+#
+# EDIT THE URL BELOW BEFORE YOU RELY ON IT — it is a deliberate placeholder.
+# `pnpm rename:project` rewrites the repo NAME (`my-startup-template`) wherever
+# it appears, but it has no idea what your GitHub owner is, so a real owner
+# hardcoded here would survive the rename and silently point every fork at
+# somebody else's repository. A link that obviously needs editing is the lesser
+# evil: one that resolves to the wrong repo is worse than one that does not
+# resolve at all.
 - Project:
     - AGENTS.md:
         - abbr: AG
-          href: https://github.com/hugheba/my-startup-template/blob/main/AGENTS.md
+          href: https://github.com/your-org/your-repo/blob/main/AGENTS.md

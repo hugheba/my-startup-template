@@ -69,7 +69,7 @@ Add IDs here rather than reaching for the `extensions.ignoreRecommendations` set
 Nothing to click. The first time you open a Java or Kotlin file, several things happen at once and the editor is briefly wrong about your code:
 
 - **Java** starts the Eclipse JDT language server, which imports the project and builds an index. The status bar shows progress; until it settles you may see unresolved imports that are not really unresolved.
-- **Gradle** forks a daemon on first build and downloads dependencies into `~/.gradle`. That cache is **not** on a Docker named volume, so a container rebuild discards it and the next build re-downloads. Slow, never wrong.
+- **Gradle** forks a daemon on first build and downloads dependencies into `~/.gradle`. That cache **is** on a Docker named volume (`gradle-cache`), so it survives a container rebuild and only the very first build pays the download. To force a clean re-resolve, remove the volume with `docker compose -f .devcontainer/docker-compose.yml down -v` — note that also wipes the database.
 - **Kotlin** support comes from JetBrains' official extension, which is **Alpha**. Expect core editing to work and rough edges elsewhere; Kotlin Multiplatform is not supported yet.
 
 **Rust** behaves differently and needs nothing configured. rust-analyzer downloads its own server binary and finds `cargo` on `PATH`, which resolves through mise's shims — the Dockerfile registers a global default for `rust` precisely so that works when the extension host spawns `cargo` from outside the repo. `rust-src` is installed as a declared component in [`mise.toml`](../mise.toml); without it, hovering `Vec` or jumping into `Option` fails and rust-analyzer reports a sysroot error rather than a missing component.

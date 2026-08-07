@@ -27,14 +27,16 @@
     "verify:deps": "node scripts/verify-exact-deps.mjs",
     "verify:mise": "node scripts/verify-mise-lock.mjs",
     "rename:project": "node scripts/rename-template.mjs",
-    "prepare": "lefthook install || echo '! lefthook install failed - git hooks are NOT active'"
+    "prepare": "lefthook install || echo '! lefthook install failed - git hooks are NOT active'",
+    "dashboard:sync": "node scripts/generate-dashboard.mjs",
+    "verify:dashboard": "node scripts/generate-dashboard.mjs --check"
   },
   "devDependencies": {
     "@commitlint/cli": "21.2.1",
     "@commitlint/config-conventional": "21.2.0",
     "@my-startup-template/eslint-config": "workspace:*",
     "@my-startup-template/prettier-config": "workspace:*",
-    "@next/eslint-plugin-next": "16.2.12",
+    "@next/eslint-plugin-next": "16.3.0",
     "eslint": "9.39.5",
     "lefthook": "2.1.10",
     "markdownlint-cli2": "0.23.2",

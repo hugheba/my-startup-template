@@ -36,14 +36,19 @@ services:
       # The repo itself. `cached` trades strict host↔container write ordering
       # for throughput, which matters for node_modules-heavy trees on macOS.
       - ..:/workspaces/my-startup-template:cached
-      # Named volumes so Claude Code's and Gortex's state survive a rebuild.
-      # The image pre-creates both paths owned by vscode: Docker seeds a new
-      # named volume from the image directory's ownership, and an unseeded
-      # volume mounts root:root, leaving tools running as vscode unable to
-      # write. ~/.gortex is a machine-local sqlite graph + model cache, never
-      # repo content, so it is deliberately not on the bind mount.
+      # Named volumes so Claude Code's, Gortex's and Gradle's state survive a
+      # rebuild. The image pre-creates all three paths owned by vscode: Docker
+      # seeds a new named volume from the image directory's ownership, and an
+      # unseeded volume mounts root:root, leaving tools running as vscode unable
+      # to write. All three are machine-local caches — a sqlite graph + model
+      # cache, and a dependency cache — never repo content, so none of them is
+      # on the bind mount.
       - claude-config:/home/vscode/.claude
       - gortex-store:/home/vscode/.gortex
+      # Without this, every rebuild re-downloads the full dependency graph of any
+      # JVM module in the tree. Correctness-neutral: Gradle re-resolves from the
+      # same lock either way, so losing it costs download time and nothing else.
+      - gradle-cache:/home/vscode/.gradle
 
     # Keep the container alive: the devcontainer attaches to it rather than
     # running an app process. Without this the container exits immediately and
@@ -55,6 +60,125 @@ services:
     # apply to anyone running the image outside this file. Settings that must
     # not be optional belong in the image.
 
+    # Start the datastore with the workspace, and wait for it to be ACCEPTING
+    # CONNECTIONS rather than merely running. `service_started` would let the
+    # app container come up while Postgres is still doing first-boot initdb,
+    # so the first query of a session fails and the second succeeds — the kind
+    # of intermittent failure nobody reproduces on demand.
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Postgres — the application database
+  # ---------------------------------------------------------------------------
+  db:
+    # Digest-pinned; the tag beside it is what Renovate reads. Both live in
+    # .devcontainer/.env, and `pnpm verify:deps` fails the build if this ever
+    # becomes a bare tag.
+    image: postgres:${POSTGRES_IMAGE_TAG}@${POSTGRES_IMAGE_DIGEST}
+    environment:
+      # `postgres` for user AND database is not laziness — it is what Supabase
+      # gives you. A Supabase connection string ends in `/postgres`, so keeping
+      # the same name locally means local and hosted differ ONLY in host and
+      # password. The same migrations, dumps and DATABASE_URL shape work
+      # against both with no rename step.
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      # Deterministic collation. Left to the host locale, index ordering for
+      # text columns can differ between a developer's machine and CI, which
+      # shows up as tests that pass locally and fail in CI on ORDER BY.
+      POSTGRES_INITDB_ARGS: '--locale=C.UTF-8 --encoding=UTF8'
+    # `pg_isready -U postgres` and not a bare `pg_isready`: during first boot
+    # initdb briefly runs a temporary server on a unix socket that answers
+    # ready, so an unauthenticated check can pass before the real one is up.
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    volumes:
+      # Named volume, NOT a bind mount into the repo. Postgres data files are
+      # platform- and version-specific, would be catastrophic to commit, and on
+      # macOS a bind-mounted data directory is both slow and prone to fsync
+      # semantics Postgres does not expect.
+      - pgdata:/var/lib/postgresql/data
+    # Bound to loopback only. Without the 127.0.0.1 prefix Docker publishes on
+    # 0.0.0.0 and, on some setups, punches through the host firewall — an open
+    # Postgres on the network with a password of "postgres".
+    ports:
+      - '127.0.0.1:5432:5432'
+
+  # ---------------------------------------------------------------------------
+  # Adminer — web UI for the database, at http://localhost:8080
+  # ---------------------------------------------------------------------------
+  # A container rather than an editor extension, so it works the same in
+  # Codespaces, in the browser, and for anyone not using VS Code — and carries
+  # no licence tier.
+  #
+  # Drivers built into this image, enumerated from its own login page rather
+  # than from the marketing copy: MySQL/MariaDB, PostgreSQL, SQLite, MS SQL,
+  # Oracle (beta). SQL only. Elasticsearch, MongoDB and Redis are Adminer
+  # PLUGINS — they need mounting into /var/www/html/plugins-enabled, so adding
+  # one of those datastores later is a real step, not a free ride.
+  adminer:
+    image: adminer:${ADMINER_IMAGE_TAG}@${ADMINER_IMAGE_DIGEST}
+    environment:
+      # Pre-fills the login form's server field so the only thing to type is
+      # the password. `db` is the compose service name above, which is also its
+      # hostname on the default network.
+      ADMINER_DEFAULT_SERVER: db
+    ports:
+      - '127.0.0.1:8080:8080'
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Homepage — the dev springboard at http://localhost:8081
+  # ---------------------------------------------------------------------------
+  # One page listing everything this stack runs, so a newcomer does not have to
+  # read docker-compose.yml to find the database UI. A container rather than an
+  # editor extension, so it works in Codespaces, in a plain browser, and for
+  # anyone not using VS Code.
+  #
+  # Config is committed YAML in .devcontainer/homepage/, which is the reason
+  # this and not a dashboard whose board lives in its own database: the board
+  # ships with the template, arrives populated in a fork, and shows up in the
+  # diff of the PR that changed it.
+  homepage:
+    image: ghcr.io/gethomepage/homepage:${HOMEPAGE_IMAGE_TAG}@${HOMEPAGE_IMAGE_DIGEST}
+    environment:
+      # REQUIRED. Without it Homepage refuses the request with a host-validation
+      # error rather than rendering — it is a same-origin protection, and the
+      # value must include the port you actually browse on. Both entries are
+      # needed: the first is the host your browser sends, the second is what a
+      # sibling container uses.
+      HOMEPAGE_ALLOWED_HOSTS: 'localhost:8081,127.0.0.1:8081,homepage:3000'
+    volumes:
+      # NOT `:ro`. Homepage writes a logs/ directory and generates a
+      # kubernetes.yaml inside its own config dir on boot; mounted read-only it
+      # crash-loops on `ENOENT: mkdir '/app/config/logs'` while still answering
+      # HTTP, so it looks up and renders nothing. Both artefacts are gitignored.
+      - ./homepage:/app/config
+      # Deliberately NO /var/run/docker.sock. Label auto-discovery would need it,
+      # and it hands a dashboard read/write control over every container on the
+      # host — including the one you are working in. The tiles are declared in
+      # services.yaml instead; see homepage/docker.yaml to opt in.
+    # Homepage listens on 3000 INTERNALLY, which is the Next.js dev port. Only
+    # the host side is remapped — 8081 outside, 3000 inside — so the two never
+    # collide, and `app:3000` still means the dev server.
+    ports:
+      - '127.0.0.1:8081:3000'
+
 volumes:
   claude-config:
   gortex-store:
+  gradle-cache:
+  # Survives `docker compose down` and a devcontainer rebuild; removed only by
+  # an explicit `docker compose down -v`. That is the property you want while
+  # iterating on migrations, and the command to remember when you want a
+  # genuinely empty database back.
+  pgdata:

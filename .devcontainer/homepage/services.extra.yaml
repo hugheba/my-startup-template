@@ -1,0 +1,11 @@
+# Hand-authored groups, appended verbatim by scripts/generate-dashboard.mjs.
+# The generator owns only the `Services` group above, so nothing here is ever
+# clobbered by a regeneration.
+#
+# Use this for things that are not a forwarded port: connection strings, links
+# to runbooks, anything with no health check to speak of.
+- Reference:
+    - Database connection:
+        description: postgresql://postgres:postgres@db:5432/postgres
+    - Adminer login:
+        description: server `db` · user `postgres` · password `postgres`

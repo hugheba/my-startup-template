@@ -45,41 +45,41 @@ url_api = "https://api.github.com/repos/cli/cli/releases/assets/464728560"
 provenance = "github-attestations"
 
 [[tools."github:zzet/gortex"]]
-version = "0.61.4"
+version = "0.63.0"
 backend = "github:zzet/gortex"
 
 [tools."github:zzet/gortex"."platforms.linux-arm64"]
-checksum = "sha256:9f140ea3b0003b24523d7c4acec99f8d983c20db92dc2a16a4f64afea00302ef"
-url = "https://github.com/zzet/gortex/releases/download/v0.61.4/gortex_linux_arm64.tar.gz"
-url_api = "https://api.github.com/repos/zzet/gortex/releases/assets/489753433"
-
-[tools."github:zzet/gortex"."platforms.linux-arm64".provenance.slsa]
-url = "https://github.com/zzet/gortex/releases/download/v0.61.4/multiple.intoto.jsonl"
-
-[tools."github:zzet/gortex"."platforms.linux-x64"]
-checksum = "sha256:42f62603c6227fad032fe9b92207a36b47b658dc3ab63c9abc957dc88c4afa2e"
-url = "https://github.com/zzet/gortex/releases/download/v0.61.4/gortex_linux_amd64.tar.gz"
-url_api = "https://api.github.com/repos/zzet/gortex/releases/assets/489753437"
-
-[tools."github:zzet/gortex"."platforms.linux-x64".provenance.slsa]
-url = "https://github.com/zzet/gortex/releases/download/v0.61.4/multiple.intoto.jsonl"
-
-[tools."github:zzet/gortex"."platforms.macos-arm64"]
-checksum = "sha256:9e2c61e7d588aed5a62dce69872bf3ba97561c6d7ade85a8b59a8aa5b68d3342"
-url = "https://github.com/zzet/gortex/releases/download/v0.61.4/gortex_darwin_arm64.tar.gz"
-url_api = "https://api.github.com/repos/zzet/gortex/releases/assets/489754469"
+checksum = "sha256:02a705b3dc3a1c660df4a70b6d3c4754a1f203c0e6fb53c42d2c1a450d0cf0d2"
+url = "https://github.com/zzet/gortex/releases/download/v0.63.0/gortex_linux_arm64.tar.gz"
+url_api = "https://api.github.com/repos/zzet/gortex/releases/assets/502402015"
 provenance_verified = true
 
+[tools."github:zzet/gortex"."platforms.linux-arm64".provenance.slsa]
+url = "https://github.com/zzet/gortex/releases/download/v0.63.0/multiple.intoto.jsonl"
+
+[tools."github:zzet/gortex"."platforms.linux-x64"]
+checksum = "sha256:197399d433cef27da9633912d4aee52a5d0640f0da65e8b32e90ed1c4cf673c9"
+url = "https://github.com/zzet/gortex/releases/download/v0.63.0/gortex_linux_amd64.tar.gz"
+url_api = "https://api.github.com/repos/zzet/gortex/releases/assets/502402016"
+
+[tools."github:zzet/gortex"."platforms.linux-x64".provenance.slsa]
+url = "https://github.com/zzet/gortex/releases/download/v0.63.0/multiple.intoto.jsonl"
+
+[tools."github:zzet/gortex"."platforms.macos-arm64"]
+checksum = "sha256:bf3429b9248ee0227422971bf9e1e68838d43dc86af609be4d29bce1df67e93d"
+url = "https://github.com/zzet/gortex/releases/download/v0.63.0/gortex_darwin_arm64.tar.gz"
+url_api = "https://api.github.com/repos/zzet/gortex/releases/assets/502403777"
+
 [tools."github:zzet/gortex"."platforms.macos-arm64".provenance.slsa]
-url = "https://github.com/zzet/gortex/releases/download/v0.61.4/multiple.intoto.jsonl"
+url = "https://github.com/zzet/gortex/releases/download/v0.63.0/multiple.intoto.jsonl"
 
 [tools."github:zzet/gortex"."platforms.macos-x64"]
-checksum = "sha256:cd0a264fd565c65d5aa5b88c9ecd28702d7751aa19c815d74ffb0617e52fd64f"
-url = "https://github.com/zzet/gortex/releases/download/v0.61.4/gortex_darwin_amd64.tar.gz"
-url_api = "https://api.github.com/repos/zzet/gortex/releases/assets/489754474"
+checksum = "sha256:671526525915527a940b718065df15b1f56562bb414d59a5f9ac58c2b90d6c30"
+url = "https://github.com/zzet/gortex/releases/download/v0.63.0/gortex_darwin_amd64.tar.gz"
+url_api = "https://api.github.com/repos/zzet/gortex/releases/assets/502403776"
 
 [tools."github:zzet/gortex"."platforms.macos-x64".provenance.slsa]
-url = "https://github.com/zzet/gortex/releases/download/v0.61.4/multiple.intoto.jsonl"
+url = "https://github.com/zzet/gortex/releases/download/v0.63.0/multiple.intoto.jsonl"
 
 [[tools.gitleaks]]
 version = "8.30.1"
@@ -105,6 +105,30 @@ checksum = "sha256:dfe101a4db2255fc85120ac7f3d25e4342c3c20cf749f2c20a18081af1952
 url = "https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_darwin_x64.tar.gz"
 url_api = "https://api.github.com/repos/gitleaks/gitleaks/releases/assets/378332053"
 
+[[tools.gradle]]
+version = "9.6.1"
+backend = "aqua:gradle/gradle"
+
+[tools.gradle."platforms.linux-arm64"]
+checksum = "sha256:9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14"
+url = "https://github.com/gradle/gradle-distributions/releases/download/v9.6.1/gradle-9.6.1-bin.zip"
+url_api = "https://api.github.com/repos/gradle/gradle-distributions/releases/assets/458711386"
+
+[tools.gradle."platforms.linux-x64"]
+checksum = "sha256:9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14"
+url = "https://github.com/gradle/gradle-distributions/releases/download/v9.6.1/gradle-9.6.1-bin.zip"
+url_api = "https://api.github.com/repos/gradle/gradle-distributions/releases/assets/458711386"
+
+[tools.gradle."platforms.macos-arm64"]
+checksum = "sha256:9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14"
+url = "https://github.com/gradle/gradle-distributions/releases/download/v9.6.1/gradle-9.6.1-bin.zip"
+url_api = "https://api.github.com/repos/gradle/gradle-distributions/releases/assets/458711386"
+
+[tools.gradle."platforms.macos-x64"]
+checksum = "sha256:9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9e14"
+url = "https://github.com/gradle/gradle-distributions/releases/download/v9.6.1/gradle-9.6.1-bin.zip"
+url_api = "https://api.github.com/repos/gradle/gradle-distributions/releases/assets/458711386"
+
 [[tools.java]]
 version = "graalvm-community-21.0.2"
 backend = "core:java"
@@ -124,6 +148,33 @@ url = "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-21.0.2
 [tools.java."platforms.macos-x64"]
 checksum = "sha256:7a8aa93fa45d1721908477abf4732a32637d420ffcb66ada9fb6456440b0d9e1"
 url = "https://github.com/graalvm/graalvm-ce-builds/releases/download/jdk-21.0.2/graalvm-community-jdk-21.0.2_macos-x64_bin.tar.gz"
+
+[[tools.kotlin]]
+version = "2.4.10"
+backend = "github:JetBrains/kotlin"
+
+[tools.kotlin.options]
+asset_pattern = "kotlin-compiler-*.zip"
+
+[tools.kotlin."platforms.linux-arm64"]
+checksum = "sha256:473dd66c7a3ef4b182065b3da670466c1bf2773a9dbb0ed8b33a39fe9d4f876d"
+url = "https://github.com/JetBrains/kotlin/releases/download/v2.4.10/kotlin-compiler-2.4.10.zip"
+url_api = "https://api.github.com/repos/JetBrains/kotlin/releases/assets/476575537"
+
+[tools.kotlin."platforms.linux-x64"]
+checksum = "sha256:473dd66c7a3ef4b182065b3da670466c1bf2773a9dbb0ed8b33a39fe9d4f876d"
+url = "https://github.com/JetBrains/kotlin/releases/download/v2.4.10/kotlin-compiler-2.4.10.zip"
+url_api = "https://api.github.com/repos/JetBrains/kotlin/releases/assets/476575537"
+
+[tools.kotlin."platforms.macos-arm64"]
+checksum = "sha256:473dd66c7a3ef4b182065b3da670466c1bf2773a9dbb0ed8b33a39fe9d4f876d"
+url = "https://github.com/JetBrains/kotlin/releases/download/v2.4.10/kotlin-compiler-2.4.10.zip"
+url_api = "https://api.github.com/repos/JetBrains/kotlin/releases/assets/476575537"
+
+[tools.kotlin."platforms.macos-x64"]
+checksum = "sha256:473dd66c7a3ef4b182065b3da670466c1bf2773a9dbb0ed8b33a39fe9d4f876d"
+url = "https://github.com/JetBrains/kotlin/releases/download/v2.4.10/kotlin-compiler-2.4.10.zip"
+url_api = "https://api.github.com/repos/JetBrains/kotlin/releases/assets/476575537"
 
 [[tools.node]]
 version = "24.18.1"
@@ -174,23 +225,23 @@ version = "3.14.6"
 backend = "core:python"
 
 [tools.python."platforms.linux-arm64"]
-checksum = "sha256:44f86d58f3bbc1aa6c95ee90f03226e0fdbd22475a98c4410e5a20042b7f40d3"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
+checksum = "sha256:8ad1ec529cd1708245e8661a463245fc1479c43cbfd66e58b095456ebf77180a"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260804/cpython-3.14.6+20260804-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.linux-x64"]
-checksum = "sha256:d6254462d5fe066810a472d286861f6a18f66400008bfa9688e202a5672e88cb"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
+checksum = "sha256:ba960817e542642021135db330d875f410f4e14c64a62e2ae5faf3697ada08b2"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260804/cpython-3.14.6+20260804-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.macos-arm64"]
-checksum = "sha256:f4b47659e2da4b97f38cefdf5ad19f0042946099d843cde60de308708e5b1ac5"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-aarch64-apple-darwin-install_only_stripped.tar.gz"
+checksum = "sha256:e0d4e5066aef3248c22e08a07546bfd5edeaca904c91fadc296be720998ec2ec"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260804/cpython-3.14.6+20260804-aarch64-apple-darwin-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [tools.python."platforms.macos-x64"]
-checksum = "sha256:00a22363402a1a15d4fb1327c8259a91118258d5463d10a97d3e56c1f18195f6"
-url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260728/cpython-3.14.6+20260728-x86_64-apple-darwin-install_only_stripped.tar.gz"
+checksum = "sha256:78ded4c4f0b6a931240f09bd20608533bb40dd71c1ff953c7267359075ca8b16"
+url = "https://github.com/astral-sh/python-build-standalone/releases/download/20260804/cpython-3.14.6+20260804-x86_64-apple-darwin-install_only_stripped.tar.gz"
 provenance = "github-attestations"
 
 [[tools.rtk]]
@@ -216,6 +267,13 @@ url_api = "https://api.github.com/repos/rtk-ai/rtk/releases/assets/492781823"
 checksum = "sha256:52475adf4659e95b3560eac117e13bc6ab3320de8b8ce75ba4e7d5f3604613cf"
 url = "https://github.com/rtk-ai/rtk/releases/download/v0.44.1/rtk-x86_64-apple-darwin.tar.gz"
 url_api = "https://api.github.com/repos/rtk-ai/rtk/releases/assets/492781822"
+
+[[tools.rust]]
+version = "1.97.1"
+backend = "core:rust"
+
+[tools.rust.options]
+components = "clippy,rust-src,rustfmt"
 
 [[tools.uv]]
 version = "0.12.0"

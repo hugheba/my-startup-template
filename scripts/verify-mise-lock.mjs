@@ -35,6 +35,27 @@ const LOCK = 'mise.lock';
 // no checksum for whoever builds there.
 const PLATFORMS = ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64'];
 
+// Tools whose backend cannot produce per-platform checksums, so the
+// checksum half of this gate is skipped for them BY NAME. The version half is
+// not: a bump in .devcontainer/.env with a stale mise.lock still fails, which is
+// the drift this file mostly exists to catch.
+//
+// This list must stay short and each entry must be justified here. An unexplained
+// name is a hole, and a hole nobody wrote down is the failure mode this whole
+// script is a reaction to.
+//
+//   rust — mise's `core:rust` backend delegates to rustup, which resolves and
+//   downloads toolchains itself from static.rust-lang.org. mise never sees an
+//   asset URL, so `mise lock` reports "0 platform entries (4 skipped)" and
+//   writes a version-only entry no matter which backend is chosen (the
+//   asdf:code-lever/asdf-rust alternative behaves identically — both were
+//   tested). Integrity is therefore rustup's job rather than mise.lock's:
+//   rustup verifies what it downloads against the signed channel manifests it
+//   fetches over TLS. That is a real guarantee, but it is NOT the one the rest
+//   of this lockfile provides, and the difference is why this is a named
+//   exception rather than a silently relaxed rule.
+const NO_PLATFORM_CHECKSUMS = new Set(['rust']);
+
 const read = (p) => {
   try {
     return readFileSync(p, 'utf8');
@@ -75,16 +96,56 @@ const unresolved = [];
 for (const raw of toolsSection.split('\n')) {
   const line = raw.replace(/#.*$/, '').trim();
   if (!line) continue;
-  const m = /^("([^"]+)"|[A-Za-z0-9_.:@/-]+)\s*=\s*"([^"]*)"/.exec(line);
-  if (!m) {
-    // Same reasoning as above: an entry shaped differently than this regex
-    // expects (`node = { version = "24" }`, say) must not be skipped into
-    // invisibility — that drops a tool out of the gate without a word.
+  // Split on the FIRST `=` rather than matching the whole line with one
+  // pattern. A tool name cannot contain `=`, so the first one is always the
+  // top-level separator — which keeps this correct for the inline-table form
+  // below, whose value contains further `=` signs. Doing it by index also
+  // avoids an alternation followed by a greedy tail, which backtracks.
+  const eq = line.indexOf('=');
+  if (eq === -1) {
+    // Same reasoning as above: an entry shaped differently than expected must
+    // not be skipped into invisibility — that drops a tool out of the gate
+    // without a word.
     unresolved.push(`cannot parse [tools] entry: ${line}`);
     continue;
   }
-  const name = m[2] ?? m[1];
-  const spec = m[3];
+  const rawName = line.slice(0, eq).trim();
+  const rhs = line.slice(eq + 1).trim();
+
+  const quoted = /^"([^"]+)"$/.exec(rawName);
+  const bare = /^[\w.:@/-]+$/.test(rawName);
+  if (!quoted && !bare) {
+    unresolved.push(`cannot parse [tools] entry: ${line}`);
+    continue;
+  }
+  const name = quoted ? quoted[1] : rawName;
+
+  // Two shapes are legal, and BOTH have to be read here rather than one being
+  // quietly ignored:
+  //   node = "24"                                   — plain version
+  //   rust = { version = "1.97.1", components = … }  — inline table, which mise
+  //                                                    requires once a tool
+  //                                                    carries options
+  // The table form previously landed in `unresolved`, which was right at the
+  // time (nothing used it) but would now fail the gate on a correct manifest.
+  // A table WITHOUT a version key still fails: that is a tool with no pin, the
+  // exact thing this file exists to refuse.
+  let spec;
+  if (rhs.startsWith('{')) {
+    const v = /\bversion\s*=\s*"([^"]*)"/.exec(rhs);
+    if (!v) {
+      unresolved.push(`${name}: inline table declares no version — ${line}`);
+      continue;
+    }
+    spec = v[1];
+  } else {
+    const s = /^"([^"]*)"/.exec(rhs);
+    if (!s) {
+      unresolved.push(`cannot parse [tools] entry: ${line}`);
+      continue;
+    }
+    spec = s[1];
+  }
 
   const tpl = /^\{\{\s*env\.([A-Za-z_][A-Za-z0-9_]*)\s*\}\}$/.exec(spec);
   if (!tpl) {
@@ -160,6 +221,7 @@ for (const [name, version] of declared) {
     );
     continue;
   }
+  if (NO_PLATFORM_CHECKSUMS.has(name)) continue;
   const have = entry.platforms.get(version) ?? new Set();
   const missing = PLATFORMS.filter((p) => !have.has(p));
   if (missing.length > 0)
@@ -195,8 +257,14 @@ if (tag !== env.GITLEAKS_VERSION) {
   process.exit(1);
 }
 
+// The exempt tools are NAMED in the success line, not quietly subtracted. A
+// gate that reports "12 tools verified" while two of them were skipped is how a
+// hole stops being visible — the number would keep going up as coverage went
+// down.
+const exempt = [...declared.keys()].filter((n) => NO_PLATFORM_CHECKSUMS.has(n));
 console.log(
   `mise.lock is in sync with ${ENV_FILE} ` +
-    `(${declared.size} tools × ${PLATFORMS.length} platforms verified), ` +
-    `and ${SECURITY_WF} runs gitleaks v${tag} as pinned.`,
+    `(${declared.size - exempt.length} tools × ${PLATFORMS.length} platforms verified` +
+    (exempt.length > 0 ? `; ${exempt.join(', ')} version-only, see NO_PLATFORM_CHECKSUMS` : '') +
+    `), and ${SECURITY_WF} runs gitleaks v${tag} as pinned.`,
 );

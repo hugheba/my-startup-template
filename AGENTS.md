@@ -47,7 +47,8 @@ It will walk you through the brainstorm → PRD → architecture phases.
 | Toolchain       | mise (`mise.toml` + `mise.lock`) — owns every language and CLI |
 | Runtime         | Node 24 LTS                                                    |
 | Package manager | pnpm 11.20.0 (Corepack — auto-installed)                       |
-| JVM             | GraalVM CE 21 incl. `native-image`                             |
+| JVM             | GraalVM CE 21 incl. `native-image`; Kotlin 2.4 + Gradle 9      |
+| Rust            | 1.97 via rustup — the one tool `mise.lock` cannot checksum     |
 | Monorepo        | Turborepo                                                      |
 | Framework       | Next.js 16 (App Router, RSC)                                   |
 | UI runtime      | React 19                                                       |
@@ -78,6 +79,8 @@ That one file has **two consumers**:
 
 `mise.lock` pins each tool to an exact release-asset URL and SHA256 **per platform**, and records SLSA provenance where the publisher signs it. Templating costs nothing here — the lock is generated against the resolved versions. **Never delete it** — mise only maintains a lockfile that already exists, and without it builds silently downgrade to "resolve whatever is latest".
 
+**`rust` is the one exception**, and it is exempt by name rather than by accident. mise's `core:rust` backend delegates to rustup, which resolves and downloads toolchains itself, so mise never sees an asset URL and `mise lock` writes a version-only entry (the `asdf:code-lever/asdf-rust` backend behaves identically). Integrity there is rustup's — signed channel manifests over TLS — not this lockfile's. `NO_PLATFORM_CHECKSUMS` in `scripts/verify-mise-lock.mjs` carries the reasoning, the version half of the gate still applies to it, and `pnpm verify:mise` prints the exemption on every run so the coverage gap cannot go quiet. Adding a name to that set is a supply-chain decision, not a formality.
+
 To bump anything:
 
 ```bash
@@ -101,7 +104,7 @@ Anything the OS must provide — `build-essential`, `zlib1g-dev` (GraalVM `nativ
 
 **Every dependency that feeds a build or ships to users is pinned to an exact version. No `^`, no `~`, no `>=`, no `*`, no `latest`, no floating tags.** A range means two people who run the same install on the same commit can get different bytes, and "it broke and nothing changed" becomes unanswerable. Two surfaces are exempt by policy — they are listed at the end of this section.
 
-This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including the `overrides` values in `pnpm-workspace.yaml` and the `npx` invocations in `.mcp.json` — and on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA.
+This is enforced, not aspirational: `pnpm verify:deps` (`scripts/verify-exact-deps.mjs`) fails CI on any loose specifier in any workspace `package.json` — including the `overrides` values in `pnpm-workspace.yaml` and the `npx` invocations in `.mcp.json` — on any `uses:` ref in `.github/workflows/` that is not a 40-character commit SHA, and on any `image:` in a Compose file that is not digest-pinned.
 
 When adding a dependency:
 
@@ -125,6 +128,35 @@ Where the rule applies today:
 | devcontainer OS packages             | apt version pins in `.devcontainer/Dockerfile`             |
 | GitHub Actions `uses:` refs          | 40-char commit SHA + `pnpm verify:deps` gate               |
 | the gitleaks scanner image           | image digest (`@sha256:…`), not a tag                      |
+| Compose service images (sidecars)    | image digest + `pnpm verify:deps` gate — see below         |
+
+### Sidecar images
+
+**A sidecar is a dependency.** The services in `.devcontainer/docker-compose.yml` — today Postgres
+and Adminer (see [Database](#database)) plus Homepage (see [Dev dashboard](#dev-dashboard)) — are
+pinned by **digest**, never by tag. A tag is
+mutable: `postgres:16` is a different filesystem this week than last, and the whole point of this
+section is that two people on the same commit get the same bytes. `:latest` is the same failure with
+the volume turned up.
+
+Two forms pass the gate, and the second is the house style:
+
+```yaml
+services:
+  db:
+    image: postgres@sha256:<64 hex> # pinned inline
+  cache:
+    image: redis@${REDIS_IMAGE_DIGEST} # pinned in .devcontainer/.env
+```
+
+Prefer the variable form. Compose already auto-loads `.devcontainer/.env`, so the digest lands beside
+every other pin in the one manifest a reviewer reads, and Renovate can reach it there — an inline
+digest in a YAML file is a second place versions live.
+
+Resolve a digest with `docker buildx imagetools inspect <image>:<tag>` and keep the tag as a trailing
+comment, exactly as workflow `uses:` refs do, so the automation can bump it later.
+
+> The gate reports counts rather than a bare "passed" — currently `3 container image(s) across 1 compose file(s)`. That is deliberate. A gate over an empty set passes for the same reason a working one does, and the count is the only thing that tells those two states apart. It earned its keep before there was anything to check: the first version globbed `**/docker-compose*.yml`, which Node's `globSync` never descends into `.devcontainer/` for, and the printed `0 compose file(s)` is what exposed it.
 
 **Every pnpm setting lives in `pnpm-workspace.yaml`.** As of pnpm 11 the `pnpm` field in `package.json` is not read at all, and `.npmrc` is restricted to auth and registry credentials. The two failure modes are not equal, and the difference matters: a leftover `pnpm` field in `package.json` produces a warning naming the ignored keys, but a setting left in `.npmrc` is dropped in **complete silence** — `node-linker=isolated` there changes nothing and says nothing. That silent case is the dangerous one, because `.npmrc` is where `nodeLinker: hoisted` used to live and that setting is load-bearing for AWS Amplify SSR deploys. `.npmrc` is therefore kept as an empty file whose only content is a comment saying where settings go.
 
@@ -142,6 +174,56 @@ Two deliberate exemptions — these are policy, not oversights, so do not "fix" 
 - **VS Code extensions** (`.vscode/extensions.json`, `.devcontainer/devcontainer.json`) carry no version at all — they are marketplace IDs, and the marketplace always installs latest. They are editor conveniences, not build inputs. What matters there is that the two lists agree, which `pnpm verify:vscode` enforces in CI.
 
 `peerDependencies` are pinned exactly too, which is unusual — normally a peer range is what makes a package composable. It is correct here only because every `packages/*` is `private: true` and consumed solely via `workspace:*`, so exact peers enforce version lockstep across the monorepo. **If you ever publish one of these packages to npm, widen its peer ranges first.**
+
+## Dev dashboard
+
+**<http://localhost:8081> lists everything this container runs.** One page of tiles — every forwarded port, with a live up/down dot for the HTTP ones. It is a sidecar ([Homepage](https://gethomepage.dev)), not an editor extension, so it works in Codespaces, in a plain browser, and for anyone not using VS Code.
+
+**Tiles are generated from `forwardPorts` + `portsAttributes` in `.devcontainer/devcontainer.json`** — not from `package.json`. That is the point: this container runs Node, JVM (Quarkus), Rust and Python apps, and `forwardPorts` is the one place all of them declare a port in the same syntax. A Quarkus dev server gets a tile by being forwarded and labelled, with nothing Node-specific involved.
+
+To add a service to the dashboard:
+
+```jsonc
+// .devcontainer/devcontainer.json
+"forwardPorts": [3000, 5432, 8080, 8081, 9000],
+"portsAttributes": {
+  "9000": { "label": "Quarkus dev", "protocol": "http" }
+}
+```
+
+```bash
+pnpm dashboard:sync   # regenerate; commit the result
+```
+
+- **`label` is required.** A forwarded port without one fails the generator rather than becoming an anonymous tile.
+- **`protocol: "http"` makes a tile clickable and monitored.** Omit it for non-HTTP services — a browser link to Postgres is noise, so it renders as an informational tile instead.
+- **Only standard devcontainer.json fields are used.** Custom keys would work at runtime but leave a permanent schema warning in that file, so the generator derives which container serves a port from `docker-compose.yml` instead.
+- **`pnpm verify:dashboard` gates drift.** The generated `services.yaml` is committed, so it can go stale the moment someone forwards a port without regenerating — and a stale dashboard is worse than none, because it is confidently wrong about where a service lives.
+- **Anything that is not a forwarded port** goes in `.devcontainer/homepage/services.extra.yaml`, appended verbatim and never clobbered by a regeneration.
+
+Two details that look like bugs if you meet them cold. Each tile carries **two different hosts**: `href` is opened by _your browser_, outside the container network, so it is `localhost:<port>`; `siteMonitor` is fetched by the _Homepage container_, inside that network, where `localhost` means Homepage itself — so it must use the Compose service name. Get them the wrong way round and the tile either never opens or sits permanently grey. And the config volume is **not** mounted read-only: Homepage writes a `logs/` directory and a `kubernetes.yaml` into its own config dir on boot, and mounted `:ro` it crash-loops on `ENOENT: mkdir '/app/config/logs'` while still answering HTTP — so it looks up and renders nothing. Both artefacts are gitignored.
+
+**Why this and not a drag-and-drop dashboard** (Homarr, Dashy): the board is committed YAML, so it ships with the template, arrives populated in a fork, and shows up in the diff of the PR that changed it. A board stored in a container database is none of those and starts empty for everyone who clones. Homarr is the better choice if you want each developer arranging their own layout — that is its native model, and YAML would fight you.
+
+## Database
+
+**Postgres runs as a sidecar and is already up when your terminal opens.** Nothing to start by hand; the `app` container waits on its healthcheck, so the first query of a session cannot race first-boot `initdb`.
+
+| Thing                         | Value                                                     |
+| ----------------------------- | --------------------------------------------------------- |
+| Host **inside** the container | `db` (the Compose service name)                           |
+| Host **from your machine**    | `localhost:5432` (bound to loopback only)                 |
+| User / password               | `postgres` / `postgres` — local only, not a secret        |
+| Database name                 | `postgres`                                                |
+| Connection string             | `postgresql://postgres:postgres@db:5432/postgres`         |
+| Web UI                        | <http://localhost:8080> (Adminer, also a sidecar)         |
+| Data                          | Named volume `pgdata`; wipe with `docker compose down -v` |
+
+**Postgres major 17 tracks Supabase**, which is this template's recommended hosted path — their self-hosted default moved 15 → 17 in June 2026. Matching majors means the same SQL, extensions and dump/restore behaviour in both places. Bump it **by hand**, together with whatever Supabase runs: a Postgres major upgrade is a data migration, not a version bump, which is why that pin carries no Renovate annotation.
+
+**The database is named `postgres` on purpose.** A Supabase connection string ends in `/postgres`, so keeping the name locally means local and hosted differ only in host and password — same migrations, same dumps, same `DATABASE_URL` shape, no rename step. Do not rename it per environment; the environment is distinguished by the host, not by the database name.
+
+**Adminer is a container, not an editor extension**, so it works identically in Codespaces, in a browser, and for anyone not using VS Code, and carries no licence tier. Verified driver list for the pinned image, read off its own login page: **MySQL/MariaDB, PostgreSQL, SQLite, MS SQL, Oracle (beta)**. Elasticsearch, MongoDB and Redis are **plugins**, not built in — they mount into `/var/www/html/plugins-enabled` and are a real step to add. No free tool currently covers Postgres + Elasticsearch + Redis in one UI; `dbgate/dbgate` (GPL-3) is the alternative if Redis and MongoDB matter more than Elasticsearch.
 
 ## Commands cheatsheet
 
@@ -197,16 +279,20 @@ uv add --dev <package> # add a dev dep
 - **Prettier** formats on save and on staged files.
 - **Git hooks** live in [`lefthook.yml`](lefthook.yml) — one file for both the hook definitions and the checks they run. `pnpm install` installs them via the `prepare` script. Jobs there run sequentially on purpose; see the comment at the top of the file before adding `parallel: true`.
 - **Commits** must follow conventional-commit format (`feat(scope):`, `fix(scope):`, `chore:`, `docs:`, `ci:`, `build:`). Enforced by commitlint on `commit-msg`.
-- **VS Code extensions** are kept in lockstep between `.vscode/extensions.json` (recommendations) and `.devcontainer/devcontainer.json` (auto-installed in Codespaces). `pnpm verify:vscode` enforces this in CI.
+- **VS Code extensions** are kept in lockstep between `.vscode/extensions.json` (recommendations) and `.devcontainer/devcontainer.json` (auto-installed in Codespaces). `pnpm verify:vscode` enforces this in CI. The prompts a fresh clone sees on first launch — and which of them silently degrade the toolchain if dismissed — are in [`docs/vscode-setup.md`](docs/vscode-setup.md).
 
 ## Testing
 
 Vitest runs in `apps/web` only — today it is the only workspace with code. `pnpm test` (→ `turbo run test`) is part of the required `Lint + Typecheck + Build + Test` check.
 
-- Tests sit **beside** what they cover: `lib/utils.ts` → `lib/utils.test.ts`. No separate `__tests__/` tree.
-- Import `describe` / `it` / `expect` from `vitest` explicitly. There is no config file, no setup file, and no `globals: true` — zero-config works because `apps/web` is `"type": "module"`.
-- There is deliberately **no jsdom and no @testing-library**. Add them with the first component that has behavior worth asserting, not the first one that renders static markup.
-- To add a runner to another workspace: add `vitest` (exact-pinned, per the section above) and a `"test": "vitest run"` script. `turbo.json` already declares the task — nothing changes there.
+- Tests sit **beside** what they cover: `lib/utils.ts` → `lib/utils.test.ts`, `components/ui/button.tsx` → `components/ui/button.test.tsx`. No separate `__tests__/` tree.
+- Import `describe` / `it` / `expect` from `vitest` explicitly. `globals` stays **false** — it keeps a test file's dependencies visible and ESLint's `no-undef` honest.
+- **Component tests run in jsdom** via [`apps/web/vitest.config.ts`](apps/web/vitest.config.ts), with `@testing-library/react` and the `jest-dom` matchers. Three things in that config are load-bearing and each fails as something other than what it is — read its comments before changing it:
+  - `oxc: { jsx: { runtime: 'automatic' } }` — the shared tsconfig sets `jsx: "preserve"` for Next, so without this the transformer emits JSX verbatim and tests die with "invalid JS syntax" pointing at the component's first tag. It is `oxc`, not `esbuild` (Vitest 4 switched); the `esbuild` key is not an error, it warns and is ignored. Use the object form — the bare string `'automatic'` runs but fails `tsc --noEmit`.
+  - `resolve.alias` for `@/*` — Vite does not read tsconfig `paths`, so every `@/lib/utils` import inside a component fails to resolve. It is a second home for that mapping; change both together.
+  - [`vitest.setup.ts`](apps/web/vitest.setup.ts) calls `cleanup()` in `afterEach` by hand, because Testing Library only self-registers that when `globals` is true. Without it, renders accumulate in one `document.body` and `getByRole` starts throwing "found multiple elements" in whichever test runs second.
+- Assert **behaviour that can break**, not the implementation restated. The existing tests each guard a named failure mode in a comment — `asChild` silently ceasing to render links, a dropped `ref` mispositioning every Radix overlay, a caller's `className` losing to a variant class. A test that cannot fail is worse than no test, because it reports coverage it does not provide.
+- To add a runner to another workspace: add `vitest` (exact-pinned, per the section above) and a `"test": "vitest run"` script. `turbo.json` already declares the task — nothing changes there. A workspace rendering components also needs the jsdom setup above; one that does not can stay zero-config.
 
 **`turbo run test` exits 0 when no workspace defines a `test` script.** It prints `Tasks: 0 successful, 0 total` and the required check goes green having run nothing. That is how this repo shipped a `Test` gate that had never executed a test. If you delete the last `test` script, the gate does not turn red — it goes quiet.
 

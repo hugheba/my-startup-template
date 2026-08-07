@@ -1,6 +1,8 @@
 # Startup Template Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+>
+> **Every path below is relative to the repo root.** They were absolute host paths when this plan was first written, which broke the moment it was read from anywhere other than the machine that authored it — a dev container, a Codespace, or any fork. Keep them relative: `scripts/rename-template.mjs` deliberately skips `docs/superpowers/`, so an absolute path written here is never rewritten by `pnpm rename:project` and would outlive the checkout it described.
 
 **Goal:** Build a reusable, opinionated Turborepo template for fullstack Next.js startup projects, deployable to both Vercel and AWS Amplify, with BMAD-driven product/architecture/dev/deploy workflow, GitHub Codespaces support, Node 22 + pnpm + Python/UV toolchain, and CI/security pipelines.
 
@@ -63,14 +65,15 @@ Files created by each task. Engineer can use this to navigate non-linearly if ne
 
 - [ ] **Step 1: Initialize git repo**
 
+From the repo root:
+
 ```bash
-cd /Volumes/Extended/IdeaProjects/my-startup-template
 git init -b main
 ```
 
 - [ ] **Step 2: Create `.gitignore`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.gitignore`:
+Write `.gitignore`:
 
 ```
 # deps
@@ -126,7 +129,7 @@ pnpm-debug.log*
 
 - [ ] **Step 3: Create `.gitattributes`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.gitattributes`:
+Write `.gitattributes`:
 
 ```
 * text=auto eol=lf
@@ -136,7 +139,7 @@ uv.lock -diff
 
 - [ ] **Step 4: Create `.editorconfig`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.editorconfig`:
+Write `.editorconfig`:
 
 ```ini
 root = true
@@ -158,7 +161,7 @@ indent_style = tab
 
 - [ ] **Step 5: Create `LICENSE` (MIT placeholder)**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/LICENSE`:
+Write `LICENSE`:
 
 ```
 MIT License
@@ -186,7 +189,7 @@ SOFTWARE.
 
 - [ ] **Step 6: Create README placeholder**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/README.md`:
+Write `README.md`:
 
 ```markdown
 # my-startup-template
@@ -211,7 +214,7 @@ git commit -m "chore: initialize repo with base hygiene files"
 
 - [ ] **Step 1: Create `.nvmrc`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.nvmrc`:
+Write `.nvmrc`:
 
 ```
 22
@@ -219,7 +222,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/.nvmrc`:
 
 - [ ] **Step 2: Create `.npmrc`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.npmrc`:
+Write `.npmrc`:
 
 ```
 engine-strict=true
@@ -230,7 +233,7 @@ strict-peer-dependencies=false
 
 - [ ] **Step 3: Create `pnpm-workspace.yaml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/pnpm-workspace.yaml`:
+Write `pnpm-workspace.yaml`:
 
 ```yaml
 packages:
@@ -241,7 +244,7 @@ packages:
 
 - [ ] **Step 4: Create root `package.json`** (minimal — scripts added incrementally)
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/package.json`:
+Write `package.json`:
 
 ```json
 {
@@ -298,7 +301,7 @@ git commit -m "chore: pin Node 22 + pnpm 9.15.0 and define workspaces"
 
 - [ ] **Step 1: Create `turbo.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/turbo.json`:
+Write `turbo.json`:
 
 ```jsonc
 {
@@ -368,7 +371,7 @@ git commit -m "build: add Turborepo task pipeline config"
 mkdir -p packages/config/tsconfig
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tsconfig/package.json`:
+Write `packages/config/tsconfig/package.json`:
 
 ```json
 {
@@ -381,7 +384,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tsconf
 
 - [ ] **Step 2: Create `base.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tsconfig/base.json`:
+Write `packages/config/tsconfig/base.json`:
 
 ```json
 {
@@ -415,7 +418,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tsconf
 
 - [ ] **Step 3: Create `nextjs.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tsconfig/nextjs.json`:
+Write `packages/config/tsconfig/nextjs.json`:
 
 ```json
 {
@@ -438,7 +441,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tsconf
 
 - [ ] **Step 4: Create `react-lib.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tsconfig/react-lib.json`:
+Write `packages/config/tsconfig/react-lib.json`:
 
 ```json
 {
@@ -485,7 +488,7 @@ mkdir -p packages/config/prettier
 
 - [ ] **Step 2: Create `packages/config/prettier/package.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/prettier/package.json`:
+Write `packages/config/prettier/package.json`:
 
 ```json
 {
@@ -504,7 +507,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/pretti
 
 - [ ] **Step 3: Create `packages/config/prettier/index.mjs`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/prettier/index.mjs`:
+Write `packages/config/prettier/index.mjs`:
 
 ```js
 /** @type {import("prettier").Config} */
@@ -521,7 +524,7 @@ export default {
 
 - [ ] **Step 4: Create root `.prettierignore`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.prettierignore`:
+Write `.prettierignore`:
 
 ```
 node_modules
@@ -542,7 +545,7 @@ scripts/.pytest_cache
 
 - [ ] **Step 5: Update root `package.json` to point at the shared config and add devDeps**
 
-Edit `/Volumes/Extended/IdeaProjects/my-startup-template/package.json` — add `"prettier"` field (sibling of `"scripts"`) and three devDependencies:
+Edit `package.json` — add `"prettier"` field (sibling of `"scripts"`) and three devDependencies:
 
 Replace the `"devDependencies"` block with:
 
@@ -598,7 +601,7 @@ git commit -m "build: add shared Prettier config with tailwindcss + organize-imp
 mkdir -p packages/config/eslint
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/eslint/package.json`:
+Write `packages/config/eslint/package.json`:
 
 ```json
 {
@@ -631,7 +634,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/eslint
 
 - [ ] **Step 2: Create `base.js`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/eslint/base.js`:
+Write `packages/config/eslint/base.js`:
 
 ```js
 import js from '@eslint/js';
@@ -678,7 +681,7 @@ export default [
 
 - [ ] **Step 3: Create `react-lib.js`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/eslint/react-lib.js`:
+Write `packages/config/eslint/react-lib.js`:
 
 ```js
 import base from './base.js';
@@ -719,7 +722,7 @@ export default [
 
 - [ ] **Step 4: Create `next.js`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/eslint/next.js`:
+Write `packages/config/eslint/next.js`:
 
 ```js
 import reactLib from './react-lib.js';
@@ -782,7 +785,7 @@ git commit -m "build: add shared ESLint 9 flat configs (base, react-lib, next)"
 mkdir -p packages/config/tailwind
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tailwind/package.json`:
+Write `packages/config/tailwind/package.json`:
 
 ```json
 {
@@ -802,7 +805,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tailwi
 
 - [ ] **Step 2: Create `preset.ts`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/config/tailwind/preset.ts`:
+Write `packages/config/tailwind/preset.ts`:
 
 ```ts
 import type { Config } from 'tailwindcss';
@@ -880,7 +883,7 @@ git commit -m "build: add shared Tailwind preset with shadcn-compatible tokens"
 mkdir -p packages/types/src
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/types/package.json`:
+Write `packages/types/package.json`:
 
 ```json
 {
@@ -904,7 +907,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/types/package
 }
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/types/tsconfig.json`:
+Write `packages/types/tsconfig.json`:
 
 ```json
 {
@@ -913,7 +916,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/types/tsconfi
 }
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/types/src/index.ts`:
+Write `packages/types/src/index.ts`:
 
 ```ts
 export {};
@@ -949,7 +952,7 @@ git commit -m "feat(types): add empty shared types workspace"
 mkdir -p packages/ui/src
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/ui/package.json`:
+Write `packages/ui/package.json`:
 
 ```json
 {
@@ -985,7 +988,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/ui/package.js
 }
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/ui/tsconfig.json`:
+Write `packages/ui/tsconfig.json`:
 
 ```json
 {
@@ -994,14 +997,14 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/ui/tsconfig.j
 }
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/ui/eslint.config.mjs`:
+Write `packages/ui/eslint.config.mjs`:
 
 ```js
 import config from '@my-startup-template/eslint-config/react-lib';
 export default config;
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/packages/ui/src/index.ts`:
+Write `packages/ui/src/index.ts`:
 
 ```ts
 export {};
@@ -1040,7 +1043,7 @@ mkdir -p apps/web
 
 - [ ] **Step 2: Create `apps/web/package.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/package.json`:
+Write `apps/web/package.json`:
 
 ```json
 {
@@ -1084,7 +1087,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/package.json`
 
 - [ ] **Step 3: Create `apps/web/tsconfig.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/tsconfig.json`:
+Write `apps/web/tsconfig.json`:
 
 ```json
 {
@@ -1102,7 +1105,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/tsconfig.json
 
 - [ ] **Step 4: Create `apps/web/next.config.ts`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/next.config.ts`:
+Write `apps/web/next.config.ts`:
 
 ```ts
 import type { NextConfig } from 'next';
@@ -1120,7 +1123,7 @@ export default nextConfig;
 
 - [ ] **Step 5: Create `apps/web/next-env.d.ts`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/next-env.d.ts`:
+Write `apps/web/next-env.d.ts`:
 
 ```ts
 /// <reference types="next" />
@@ -1132,7 +1135,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/next-env.d.ts
 
 - [ ] **Step 6: Create `apps/web/tailwind.config.ts`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/tailwind.config.ts`:
+Write `apps/web/tailwind.config.ts`:
 
 ```ts
 import type { Config } from 'tailwindcss';
@@ -1153,7 +1156,7 @@ export default config;
 
 - [ ] **Step 7: Create `apps/web/postcss.config.mjs`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/postcss.config.mjs`:
+Write `apps/web/postcss.config.mjs`:
 
 ```js
 export default {
@@ -1165,7 +1168,7 @@ export default {
 
 - [ ] **Step 8: Create `apps/web/.env.example`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/.env.example`:
+Write `apps/web/.env.example`:
 
 ```
 # Public URL where this app is served. Used by Next, OpenGraph, etc.
@@ -1174,7 +1177,7 @@ NEXT_PUBLIC_APP_URL=http://localhost:3000
 
 - [ ] **Step 9: Create `apps/web/.gitignore`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/.gitignore`:
+Write `apps/web/.gitignore`:
 
 ```
 # next.js
@@ -1221,7 +1224,7 @@ touch apps/web/public/.gitkeep
 
 - [ ] **Step 2: Create `apps/web/app/globals.css`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/app/globals.css`:
+Write `apps/web/app/globals.css`:
 
 ```css
 @import 'tailwindcss';
@@ -1277,7 +1280,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/app/globals.c
 
 - [ ] **Step 3: Create `apps/web/app/layout.tsx`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/app/layout.tsx`:
+Write `apps/web/app/layout.tsx`:
 
 ```tsx
 import type { Metadata } from 'next';
@@ -1300,7 +1303,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 - [ ] **Step 4: Create `apps/web/app/(marketing)/page.tsx`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/app/(marketing)/page.tsx`:
+Write `apps/web/app/(marketing)/page.tsx`:
 
 ```tsx
 import { Button } from '@/components/ui/button';
@@ -1345,7 +1348,7 @@ git commit -m "feat(web): add App Router layout, globals.css, and marketing land
 
 - [ ] **Step 1: Create `apps/web/components.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/components.json`:
+Write `apps/web/components.json`:
 
 ```json
 {
@@ -1376,7 +1379,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/components.js
 mkdir -p apps/web/lib apps/web/components/ui
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/lib/utils.ts`:
+Write `apps/web/lib/utils.ts`:
 
 ```ts
 import { type ClassValue, clsx } from 'clsx';
@@ -1389,7 +1392,7 @@ export function cn(...inputs: ClassValue[]) {
 
 - [ ] **Step 3: Create `apps/web/components/ui/button.tsx`** (shadcn new-york Button, hand-authored to match shadcn's canonical output)
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/components/ui/button.tsx`:
+Write `apps/web/components/ui/button.tsx`:
 
 ```tsx
 import { Slot } from '@radix-ui/react-slot';
@@ -1442,7 +1445,7 @@ export { Button, buttonVariants };
 
 - [ ] **Step 4: Create `apps/web/components/ui/card.tsx`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/components/ui/card.tsx`:
+Write `apps/web/components/ui/card.tsx`:
 
 ```tsx
 import * as React from 'react';
@@ -1535,7 +1538,7 @@ git commit -m "feat(web): wire shadcn/ui (cn util, button, card) — initial des
 
 - [ ] **Step 1: Create `apps/web/eslint.config.mjs`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/eslint.config.mjs`:
+Write `apps/web/eslint.config.mjs`:
 
 ```js
 import config from '@my-startup-template/eslint-config/next';
@@ -1550,7 +1553,7 @@ export default [
 
 - [ ] **Step 2: Create `apps/web/middleware.ts`** (pass-through — BMAD adds logic later)
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/apps/web/middleware.ts`:
+Write `apps/web/middleware.ts`:
 
 ```ts
 import { NextResponse } from 'next/server';
@@ -1605,7 +1608,7 @@ mkdir -p scripts
 
 - [ ] **Step 2: Create `scripts/.python-version`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/scripts/.python-version`:
+Write `scripts/.python-version`:
 
 ```
 3.13
@@ -1613,7 +1616,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/scripts/.python-versio
 
 - [ ] **Step 3: Create `scripts/pyproject.toml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/scripts/pyproject.toml`:
+Write `scripts/pyproject.toml`:
 
 ```toml
 [project]
@@ -1642,7 +1645,7 @@ testpaths = ["tests"]
 
 - [ ] **Step 4: Create `scripts/README.md`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/scripts/README.md`:
+Write `scripts/README.md`:
 
 ````markdown
 # scripts/
@@ -1674,7 +1677,7 @@ uv run pytest
 
 - [ ] **Step 5: Create `scripts/verify-vscode-extensions.mjs`** (lockstep verifier)
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/scripts/verify-vscode-extensions.mjs`:
+Write `scripts/verify-vscode-extensions.mjs`:
 
 ```js
 #!/usr/bin/env node
@@ -1731,7 +1734,7 @@ git commit -m "chore(scripts): scaffold UV Python project and add VS Code extens
 
 - [ ] **Step 1: Add hook deps to root `package.json`**
 
-Edit `/Volumes/Extended/IdeaProjects/my-startup-template/package.json`:
+Edit `package.json`:
 
 - Add to `"devDependencies"`:
   ```
@@ -1763,7 +1766,7 @@ Expected: `prepare` script runs `husky` → creates `.husky/` if missing.
 
 - [ ] **Step 3: Create `commitlint.config.mjs`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/commitlint.config.mjs`:
+Write `commitlint.config.mjs`:
 
 ```js
 export default { extends: ['@commitlint/config-conventional'] };
@@ -1771,7 +1774,7 @@ export default { extends: ['@commitlint/config-conventional'] };
 
 - [ ] **Step 4: Create `.husky/pre-commit`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.husky/pre-commit`:
+Write `.husky/pre-commit`:
 
 ```sh
 pnpm exec lint-staged
@@ -1785,7 +1788,7 @@ chmod +x .husky/pre-commit
 
 - [ ] **Step 5: Create `.husky/commit-msg`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.husky/commit-msg`:
+Write `.husky/commit-msg`:
 
 ```sh
 pnpm exec commitlint --edit "$1"
@@ -1830,7 +1833,7 @@ mkdir -p .vscode
 
 - [ ] **Step 2: Create `.vscode/extensions.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.vscode/extensions.json`:
+Write `.vscode/extensions.json`:
 
 ```jsonc
 {
@@ -1856,7 +1859,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/.vscode/extensions.jso
 
 - [ ] **Step 3: Create `.vscode/settings.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.vscode/settings.json`:
+Write `.vscode/settings.json`:
 
 ```jsonc
 {
@@ -1931,7 +1934,7 @@ mkdir -p .devcontainer
 
 - [ ] **Step 2: Create `.devcontainer/Dockerfile`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.devcontainer/Dockerfile`:
+Write `.devcontainer/Dockerfile`:
 
 ```dockerfile
 FROM mcr.microsoft.com/devcontainers/typescript-node:22-bookworm
@@ -1942,7 +1945,7 @@ RUN corepack enable
 
 - [ ] **Step 3: Create `.devcontainer/devcontainer.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.devcontainer/devcontainer.json`:
+Write `.devcontainer/devcontainer.json`:
 
 ```jsonc
 {
@@ -2014,7 +2017,7 @@ touch .claude/agents/.gitkeep .claude/commands/.gitkeep
 
 - [ ] **Step 2: Create `.claude/settings.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.claude/settings.json`:
+Write `.claude/settings.json`:
 
 ```jsonc
 {
@@ -2084,7 +2087,7 @@ git commit -m "chore(claude): add settings with MCP entries (context7, playwrigh
 
 - [ ] **Step 1: Write `AGENTS.md`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/AGENTS.md`:
+Write `AGENTS.md`:
 
 ````markdown
 # AGENTS.md
@@ -2269,7 +2272,7 @@ mkdir -p .github
 
 - [ ] **Step 2: Write `CLAUDE.md`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/CLAUDE.md`:
+Write `CLAUDE.md`:
 
 ```markdown
 # CLAUDE.md
@@ -2281,7 +2284,7 @@ That file is the single source of truth — no IDE-specific divergence.
 
 - [ ] **Step 3: Write `GEMINI.md`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/GEMINI.md`:
+Write `GEMINI.md`:
 
 ```markdown
 # GEMINI.md
@@ -2293,7 +2296,7 @@ That file is the single source of truth — no IDE-specific divergence.
 
 - [ ] **Step 4: Write `.github/copilot-instructions.md`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.github/copilot-instructions.md`:
+Write `.github/copilot-instructions.md`:
 
 ```markdown
 # GitHub Copilot Instructions
@@ -2326,7 +2329,7 @@ mkdir -p .github/ISSUE_TEMPLATE
 
 - [ ] **Step 2: Write `.github/ISSUE_TEMPLATE/bug_report.yml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.github/ISSUE_TEMPLATE/bug_report.yml`:
+Write `.github/ISSUE_TEMPLATE/bug_report.yml`:
 
 ```yaml
 name: Bug report
@@ -2357,7 +2360,7 @@ body:
 
 - [ ] **Step 3: Write `.github/ISSUE_TEMPLATE/feature_request.yml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.github/ISSUE_TEMPLATE/feature_request.yml`:
+Write `.github/ISSUE_TEMPLATE/feature_request.yml`:
 
 ```yaml
 name: Feature request
@@ -2386,7 +2389,7 @@ body:
 
 - [ ] **Step 4: Write `.github/pull_request_template.md`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.github/pull_request_template.md`:
+Write `.github/pull_request_template.md`:
 
 ```markdown
 ## Summary
@@ -2429,7 +2432,7 @@ mkdir -p .github/workflows
 
 - [ ] **Step 2: Write `.github/workflows/ci.yml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.github/workflows/ci.yml`:
+Write `.github/workflows/ci.yml`:
 
 ```yaml
 name: CI
@@ -2507,7 +2510,7 @@ git commit -m "ci: add CI workflow (lint, typecheck, build, test, format, vscode
 mkdir -p .zap
 ```
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.zap/rules.tsv`:
+Write `.zap/rules.tsv`:
 
 ```
 # ZAP baseline scan rule customizations.
@@ -2519,7 +2522,7 @@ Write `/Volumes/Extended/IdeaProjects/my-startup-template/.zap/rules.tsv`:
 
 - [ ] **Step 2: Write `.github/workflows/security.yml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.github/workflows/security.yml`:
+Write `.github/workflows/security.yml`:
 
 ```yaml
 name: Security Scan
@@ -2664,7 +2667,7 @@ git commit -m "ci: add security workflow (OWASP ZAP, Snyk, pnpm audit, CodeQL)"
 
 - [ ] **Step 1: Write `.github/workflows/deploy-dev.yml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.github/workflows/deploy-dev.yml`:
+Write `.github/workflows/deploy-dev.yml`:
 
 ```yaml
 name: Deploy to dev
@@ -2748,7 +2751,7 @@ git commit -m "ci: add deploy-dev workflow (fast-forward deploy/dev on push to m
 
 - [ ] **Step 1: Write `.github/workflows/promote.yml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.github/workflows/promote.yml`:
+Write `.github/workflows/promote.yml`:
 
 ````yaml
 name: Promote (stage or prod)
@@ -2906,7 +2909,7 @@ git commit -m "ci: add promote workflow (manual stage/prod GitOps promotion gate
 
 - [ ] **Step 1: Write `.github/dependabot.yml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.github/dependabot.yml`:
+Write `.github/dependabot.yml`:
 
 ```yaml
 version: 2
@@ -2958,7 +2961,7 @@ git commit -m "ci: add Dependabot config (npm, github-actions, devcontainers, pi
 
 - [ ] **Step 1: Write `vercel.json`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/vercel.json`:
+Write `vercel.json`:
 
 ```jsonc
 {
@@ -2995,7 +2998,7 @@ git commit -m "build(vercel): pin monorepo build + deploy only from deploy/* tra
 
 - [ ] **Step 1: Write `amplify.yml`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/amplify.yml`:
+Write `amplify.yml`:
 
 ```yaml
 version: 1
@@ -3079,7 +3082,7 @@ git commit -m "build(amplify): pin pnpm 9.15.0, env-keyed .env.production write,
 
 - [ ] **Step 1: Add scripts to root `package.json`**
 
-Edit `/Volumes/Extended/IdeaProjects/my-startup-template/package.json` `"scripts"` block — add:
+Edit `package.json` `"scripts"` block — add:
 
 ```
 "bmad:init": "npx bmad-method@latest install --yes --tools claude-code --modules bmm,bmb,cis,tea --set core.output_folder=docs/bmad-output",
@@ -3118,7 +3121,7 @@ The full scripts block should now be:
 
 - [ ] **Step 2: Create root `.env.example`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/.env.example`:
+Write `.env.example`:
 
 ```
 # Root-level env example. Per-app envs live in apps/*/.env.example.
@@ -3151,7 +3154,7 @@ git commit -m "chore: wire bmad:init and verify:vscode scripts, add root .env.ex
 
 - [ ] **Step 1: Replace placeholder `README.md`**
 
-Write `/Volumes/Extended/IdeaProjects/my-startup-template/README.md`:
+Write `README.md`:
 
 ````markdown
 # my-startup-template

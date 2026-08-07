@@ -1,0 +1,36 @@
+# Homepage — the dev springboard at http://localhost:8081
+#
+# This whole directory is committed on purpose. Homepage reads plain YAML, which
+# means the board ships with the template, arrives in a fork already populated,
+# and shows up in the diff of the PR that changed it. A dashboard whose layout
+# lives only in a container volume can do none of those things.
+
+title: Dev Services
+description: Everything this dev container is running
+
+# `Apps` first: it is the group you look at most, and the one whose tiles are
+# generated (see services.yaml). `Data` and `Docs` are stable.
+layout:
+  Apps:
+    style: row
+    columns: 3
+  Data:
+    style: row
+    columns: 3
+  Docs:
+    style: row
+    columns: 3
+
+headerStyle: clean
+statusStyle: dot
+theme: dark
+color: slate
+
+# Nothing here reaches the internet. Homepage can fetch weather, search and
+# favicons from third parties; all of that is off so the page renders identically
+# offline, on a plane, and behind a corporate proxy — and so a dev dashboard
+# never becomes a quiet outbound-traffic source.
+providers: {}
+showStats: false
+hideVersion: true
+disableCollapse: false

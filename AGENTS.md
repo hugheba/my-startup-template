@@ -185,7 +185,9 @@ To add a service to the dashboard:
 
 ```jsonc
 // .devcontainer/devcontainer.json
-"forwardPorts": [3000, 5432, 8080, 8081, 9000],
+// A bare number is a port in the WORKSPACE container. A sidecar must be
+// written "service:port" — see the warning below.
+"forwardPorts": [3000, "db:5432", "adminer:8080", "homepage:8081", 9000],
 "portsAttributes": {
   "9000": { "label": "Quarkus dev", "protocol": "http" }
 }
@@ -195,13 +197,20 @@ To add a service to the dashboard:
 pnpm dashboard:sync   # regenerate; commit the result
 ```
 
+**A sidecar written as a bare port number is silently unreachable.** In a Compose devcontainer a bare number always means a port in the _primary_ container, so `8080` forwards from `app` — where nothing listens — while Adminer sits perfectly healthy in its own container answering on `adminer:8080`. Nothing errors. The forward is created, the container is healthy, `docker compose ps` is clean, and every check reachable from inside the workspace passes; only your browser gets nothing. This template shipped that bug, and it is the reason the generator now cross-checks each entry against `docker-compose.yml`.
+
+**Host and container port must be the same number for a sidecar**, which is why Homepage runs on `PORT: 8081` internally rather than its default 3000. Two independent routes reach these services — Docker's published port and VS Code's devcontainer forward — and they only agree on one URL if the two halves match. They also collide: Homepage's default 3000 is the Next.js dev port, so `homepage:3000` and the dev server would contend for one local port. The generator fails on a mismatch rather than emitting a tile that works via one route and not the other.
+
 - **`label` is required.** A forwarded port without one fails the generator rather than becoming an anonymous tile.
+- **`portsAttributes` keys must match the `forwardPorts` entry exactly**, `service:` prefix included. `"8080"` and `"adminer:8080"` are different keys, and a mismatch loses the label rather than warning.
 - **`protocol: "http"` makes a tile clickable and monitored.** Omit it for non-HTTP services — a browser link to Postgres is noise, so it renders as an informational tile instead.
-- **Only standard devcontainer.json fields are used.** Custom keys would work at runtime but leave a permanent schema warning in that file, so the generator derives which container serves a port from `docker-compose.yml` instead.
-- **`pnpm verify:dashboard` gates drift.** The generated `services.yaml` is committed, so it can go stale the moment someone forwards a port without regenerating — and a stale dashboard is worse than none, because it is confidently wrong about where a service lives.
+- **Only standard devcontainer.json fields are used.** Custom keys would work at runtime but leave a permanent schema warning in that file, so the generator cross-checks against `docker-compose.yml` instead.
+- **`pnpm verify:dashboard` gates drift**, as a step in the required `Lint + Typecheck + Build + Test` job. The generated `services.yaml` is committed, so it can go stale the moment someone forwards a port without regenerating — and a stale dashboard is worse than none, because it is confidently wrong about where a service lives. `bookmarks.yaml` is excluded: it is generated from the `origin` remote and differs per fork by design, so gating it would fail CI for everyone who forks this template.
 - **Anything that is not a forwarded port** goes in `.devcontainer/homepage/services.extra.yaml`, appended verbatim and never clobbered by a regeneration.
 
-Two details that look like bugs if you meet them cold. Each tile carries **two different hosts**: `href` is opened by _your browser_, outside the container network, so it is `localhost:<port>`; `siteMonitor` is fetched by the _Homepage container_, inside that network, where `localhost` means Homepage itself — so it must use the Compose service name. Get them the wrong way round and the tile either never opens or sits permanently grey. And the config volume is **not** mounted read-only: Homepage writes a `logs/` directory and a `kubernetes.yaml` into its own config dir on boot, and mounted `:ro` it crash-loops on `ENOENT: mkdir '/app/config/logs'` while still answering HTTP — so it looks up and renders nothing. Both artefacts are gitignored.
+**Homepage's host validation is turned off (`HOMEPAGE_ALLOWED_HOSTS: '*'`), and that is deliberate.** It refuses any request whose `Host` it does not recognise, rendering `Error: Host validation failed` instead of the dashboard. An explicit list cannot be written here, because the host you reach it on is not knowable when the file is committed: `localhost:8081` locally, a generated `<name>-8081.app.github.dev` in Codespaces, and whatever port VS Code falls back to if Docker already holds 8081. The protection targets internet-exposed instances; this one is published on `127.0.0.1` only and, in Codespaces, sits behind that platform's auth. Changing it requires the container to be **recreated, not restarted** — a restart keeps the old environment, so the error does not change and the fix looks like it failed.
+
+Two more details that look like bugs if you meet them cold. Each tile carries **two different hosts**: `href` is opened by _your browser_, outside the container network, so it is `localhost:<port>`; `siteMonitor` is fetched by the _Homepage container_, inside that network, where `localhost` means Homepage itself — so it must use the Compose service name. Get them the wrong way round and the tile either never opens or sits permanently grey. And the config volume is **not** mounted read-only: Homepage writes a `logs/` directory and a `kubernetes.yaml` into its own config dir on boot, and mounted `:ro` it crash-loops on `ENOENT: mkdir '/app/config/logs'` while still answering HTTP — so it looks up and renders nothing. Both artefacts are gitignored.
 
 **Why this and not a drag-and-drop dashboard** (Homarr, Dashy): the board is committed YAML, so it ships with the template, arrives populated in a fork, and shows up in the diff of the PR that changed it. A board stored in a container database is none of those and starts empty for everyone who clones. Homarr is the better choice if you want each developer arranging their own layout — that is its native model, and YAML would fight you.
 

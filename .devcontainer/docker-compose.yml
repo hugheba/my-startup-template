@@ -49,6 +49,14 @@ services:
       # JVM module in the tree. Correctness-neutral: Gradle re-resolves from the
       # same lock either way, so losing it costs download time and nothing else.
       - gradle-cache:/home/vscode/.gradle
+      # So `gh auth login` run INSIDE the container survives being recreated.
+      # Needed because the GH_TOKEN passthrough in devcontainer.json cannot work
+      # everywhere: `${localEnv:...}` reads the machine hosting the container, so
+      # in Codespaces it reads the Codespaces VM, not your laptop. Precedence is
+      # verified, not assumed — GH_TOKEN wins when set, and an EMPTY GH_TOKEN
+      # (what remoteEnv produces when the host has not exported it) does not
+      # shadow this stored login.
+      - gh-config:/home/vscode/.config/gh
 
     # Keep the container alive: the devcontainer attaches to it rather than
     # running an app process. Without this the container exits immediately and
@@ -151,12 +159,45 @@ services:
   homepage:
     image: ghcr.io/gethomepage/homepage:${HOMEPAGE_IMAGE_TAG}@${HOMEPAGE_IMAGE_DIGEST}
     environment:
-      # REQUIRED. Without it Homepage refuses the request with a host-validation
-      # error rather than rendering — it is a same-origin protection, and the
-      # value must include the port you actually browse on. Both entries are
-      # needed: the first is the host your browser sends, the second is what a
-      # sibling container uses.
-      HOMEPAGE_ALLOWED_HOSTS: 'localhost:8081,127.0.0.1:8081,homepage:3000'
+      # Homepage defaults to 3000 internally — the same port as the Next.js dev
+      # server in the workspace container. That collision is not cosmetic: a
+      # devcontainer forwards a sidecar with `"service:port"`, and VS Code hands
+      # the forward the SAME number on the host side, so `homepage:3000` and the
+      # dev server's 3000 would fight over one local port and one of them would
+      # silently land somewhere else. Moving Homepage to 8081 internally means
+      # host and container ports match everywhere and the URL in the docs is the
+      # URL in every environment.
+      #
+      # Undocumented but supported: the image is a Next.js standalone server,
+      # which honours PORT. Verified against this pinned digest — it binds 8081
+      # and nothing on 3000.
+      PORT: 8081
+      # Homepage refuses any request whose Host header it does not recognise,
+      # rendering "Error: Host validation failed" instead of the dashboard. It
+      # is a DNS-rebinding protection, and it is aimed at internet-exposed
+      # instances.
+      #
+      # `*` disables it, and that is deliberate here rather than lazy. An
+      # explicit list CANNOT be written for this container, because the host you
+      # reach it on is not knowable when this file is committed:
+      #   - locally           localhost:8081
+      #   - Codespaces        <name>-8081.app.github.dev, generated per codespace
+      #   - port conflict     whatever local port VS Code falls back to when
+      #                       Docker already holds 8081
+      # A hardcoded list is wrong in two of those three, and it fails as a blank
+      # error page that names nothing — which is exactly how this was found.
+      #
+      # What is given up is small: this service is published on 127.0.0.1 only
+      # (see `ports` below), so it is not reachable from the network in the first
+      # place, and in Codespaces it sits behind that platform's own auth. The
+      # protection is for a deployment shape this container does not have.
+      #
+      # Quotes are load-bearing — a bare `*` is a YAML alias error, not a string.
+      #
+      # NOTE: changing this needs the container RECREATED, not restarted. A
+      # restart keeps the old environment and the error does not change, which
+      # reads as "the fix did not work".
+      HOMEPAGE_ALLOWED_HOSTS: '*'
     volumes:
       # NOT `:ro`. Homepage writes a logs/ directory and generates a
       # kubernetes.yaml inside its own config dir on boot; mounted read-only it
@@ -167,16 +208,23 @@ services:
       # and it hands a dashboard read/write control over every container on the
       # host — including the one you are working in. The tiles are declared in
       # services.yaml instead; see homepage/docker.yaml to opt in.
-    # Homepage listens on 3000 INTERNALLY, which is the Next.js dev port. Only
-    # the host side is remapped — 8081 outside, 3000 inside — so the two never
-    # collide, and `app:3000` still means the dev server.
+    # Host and container port are deliberately the SAME number here, as they are
+    # for db and adminer. Two different routes reach these sidecars — Docker's
+    # published port and VS Code's devcontainer forward — and they only agree on
+    # one URL if the two halves match. `8081:3000` would make Docker publish on
+    # 8081 while the forward of `homepage:3000` arrives on 3000, and which one
+    # you got would depend on how you opened it.
     ports:
-      - '127.0.0.1:8081:3000'
+      - '127.0.0.1:8081:8081'
 
 volumes:
   claude-config:
   gortex-store:
   gradle-cache:
+  # Holds an OAuth token rather than a cache, so unlike the others losing it
+  # costs an interactive re-login rather than a re-download. `docker compose
+  # down -v` wipes it along with the database.
+  gh-config:
   # Survives `docker compose down` and a devcontainer rebuild; removed only by
   # an explicit `docker compose down -v`. That is the property you want while
   # iterating on migrations, and the command to remember when you want a

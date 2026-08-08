@@ -235,7 +235,15 @@ ENV GORTEX_TELEMETRY=0
 # unable to write. ~/.gortex holds the sqlite graph store and downloaded models;
 # ~/.gradle holds the Gradle dependency cache and its daemon state. Both are
 # machine-local caches, never the repo.
-RUN mkdir -p /home/vscode/.claude /home/vscode/.gortex /home/vscode/.gradle
+#
+# ~/.config/gh is not a cache — it is where `gh auth login` writes its OAuth
+# token. Without a volume that login is lost every time the container is
+# recreated, and `gh` is silently logged out mid-task. Mode 700 because the file
+# under it holds a credential; gh writes hosts.yml 600 itself, but the directory
+# default of 755 would leave it listable.
+RUN mkdir -p /home/vscode/.claude /home/vscode/.gortex /home/vscode/.gradle \
+             /home/vscode/.config/gh \
+ && chmod 700 /home/vscode/.config/gh
 
 # Liveness probe. `node` resolves via the mise shim on PATH (set above); a
 # working node means the pinned toolchain is usable inside the dev container.

@@ -45,6 +45,39 @@
   //
   // Add `bash .devcontainer/scripts/devcontainer-phase.sh postcreate check` to
   // re-run just the read-only assertions from inside a running container.
+  // Credentials come FROM THE HOST and are never stored in the container. This
+  // is the same principle VS Code already applies to SSH: it forwards your
+  // ssh-agent as a socket, so `git push` works while no private key ever exists
+  // in here. Nothing to persist means nothing to lose.
+  //
+  // That matters because the container's home directory is NOT durable. Only
+  // the paths backed by named volumes in docker-compose.yml survive the
+  // container being recreated; everything else resets to the image. `gh`
+  // storing an OAuth token in ~/.config/gh is exactly that failure — it works
+  // until the container is recreated, then `gh` is silently logged out.
+  //
+  // GH_TOKEN is read by the gh CLI directly, so exporting it on your machine
+  // means `gh` is authenticated in here with no token stored in the container:
+  //   export GH_TOKEN=ghp_xxx      # ~/.zshrc; scopes: repo, read:org, gist
+  //
+  // THIS IS NOT A COMPLETE ANSWER, and the gap is not obvious. `${localEnv:...}`
+  // reads the environment of whatever machine HOSTS the container — your laptop
+  // for a local devcontainer, but the Codespaces VM in a Codespace, which has no
+  // reason to carry your token. So this covers local work only, and
+  // `gh auth login` inside the container is supported as the fallback: its
+  // config directory is on the `gh-config` volume in docker-compose.yml, so a
+  // login survives the container being recreated.
+  //
+  // Precedence between the two is verified rather than assumed: GH_TOKEN wins
+  // when it has a value, and when the host has NOT exported it this expands to
+  // an empty string, which gh ignores in favour of the stored login. So the two
+  // mechanisms compose instead of fighting.
+  //
+  // (Codespaces separately pre-authenticates gh with its own token, so in
+  // practice neither is usually needed there.)
+  "remoteEnv": {
+    "GH_TOKEN": "${localEnv:GH_TOKEN}"
+  },
   "postCreateCommand": "bash .devcontainer/scripts/devcontainer-phase.sh postcreate",
   // poststart, not postcreate: the Gortex daemon does not survive a container
   // stop/start, so it has to be brought back up on every boot.
@@ -54,26 +87,51 @@
   // language — Next.js, Quarkus, a Rust binary, FastAPI — gets a tile purely by
   // being forwarded and labelled here. Nothing else to register.
   //
+  // TWO ENTRY FORMS, AND THE DIFFERENCE IS LOAD-BEARING:
+  //
+  //   3000              a port in the PRIMARY container (`app`) — a dev server
+  //                     you start yourself inside the workspace.
+  //   "adminer:8080"    a port in a SIBLING Compose service. Required for every
+  //                     sidecar, because a bare number always means the primary
+  //                     container and nothing listens there on 8080/8081/5432.
+  //
+  // Getting that wrong does not error anywhere. VS Code forwards the bare port
+  // from `app`, the forward connects to nothing, and the service is simply
+  // unreachable from your browser while remaining perfectly healthy inside the
+  // Compose network — so every check you would think to run says it is fine.
+  // That is what this file shipped with, and how it was found.
+  //
   //   label     required. A forwarded port with no label fails the generator
   //             rather than appearing as an anonymous tile.
   //   protocol  "http"/"https" makes the tile clickable and health-monitored.
   //             Omit it for non-HTTP services, which then render as
   //             informational tiles — a browser link to Postgres is noise.
   //
+  // portsAttributes keys must match the forwardPorts entry EXACTLY, including
+  // the `service:` prefix — "8080" and "adminer:8080" are different keys, and a
+  // mismatch loses the label rather than warning.
+  //
   // Only standard devcontainer.json fields are used. Extra keys here would work
   // at runtime but leave a permanent schema warning in this file, so the
-  // generator derives the rest (which container serves a port) from
-  // docker-compose.yml.
-  "forwardPorts": [3000, 5432, 8080, 8081],
+  // generator derives everything else from docker-compose.yml.
+  "forwardPorts": [3000, "db:5432", "adminer:8080", "homepage:8081"],
   "portsAttributes": {
     "3000": { "label": "Next.js dev server", "protocol": "http", "onAutoForward": "notify" },
-    // `silent` for the rest: they come up with the container on every start, so
-    // notifying would mean a toast per service every boot for things that are
-    // simply expected to be there. Port 3000 stays on `notify` because it
-    // appears only when you deliberately run `pnpm dev`.
-    "5432": { "label": "PostgreSQL", "onAutoForward": "silent" },
-    "8080": { "label": "Adminer (database UI)", "protocol": "http", "onAutoForward": "silent" },
-    "8081": { "label": "Dev Services (dashboard)", "protocol": "http", "onAutoForward": "silent" }
+    // `silent` for the sidecars: they come up with the container on every
+    // start, so notifying would mean a toast per service every boot for things
+    // that are simply expected to be there. Port 3000 stays on `notify`
+    // because it appears only when you deliberately run `pnpm dev`.
+    "db:5432": { "label": "PostgreSQL", "onAutoForward": "silent" },
+    "adminer:8080": {
+      "label": "Adminer (database UI)",
+      "protocol": "http",
+      "onAutoForward": "silent"
+    },
+    "homepage:8081": {
+      "label": "Dev Services (dashboard)",
+      "protocol": "http",
+      "onAutoForward": "silent"
+    }
   },
   "customizations": {
     "vscode": {

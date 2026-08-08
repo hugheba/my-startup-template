@@ -49,6 +49,14 @@ services:
       # JVM module in the tree. Correctness-neutral: Gradle re-resolves from the
       # same lock either way, so losing it costs download time and nothing else.
       - gradle-cache:/home/vscode/.gradle
+      # So `gh auth login` run INSIDE the container survives being recreated.
+      # Needed because the GH_TOKEN passthrough in devcontainer.json cannot work
+      # everywhere: `${localEnv:...}` reads the machine hosting the container, so
+      # in Codespaces it reads the Codespaces VM, not your laptop. Precedence is
+      # verified, not assumed — GH_TOKEN wins when set, and an EMPTY GH_TOKEN
+      # (what remoteEnv produces when the host has not exported it) does not
+      # shadow this stored login.
+      - gh-config:/home/vscode/.config/gh
 
     # Keep the container alive: the devcontainer attaches to it rather than
     # running an app process. Without this the container exits immediately and
@@ -193,6 +201,10 @@ volumes:
   claude-config:
   gortex-store:
   gradle-cache:
+  # Holds an OAuth token rather than a cache, so unlike the others losing it
+  # costs an interactive re-login rather than a re-download. `docker compose
+  # down -v` wipes it along with the database.
+  gh-config:
   # Survives `docker compose down` and a devcontainer rebuild; removed only by
   # an explicit `docker compose down -v`. That is the property you want while
   # iterating on migrations, and the command to remember when you want a

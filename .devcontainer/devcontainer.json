@@ -45,6 +45,39 @@
   //
   // Add `bash .devcontainer/scripts/devcontainer-phase.sh postcreate check` to
   // re-run just the read-only assertions from inside a running container.
+  // Credentials come FROM THE HOST and are never stored in the container. This
+  // is the same principle VS Code already applies to SSH: it forwards your
+  // ssh-agent as a socket, so `git push` works while no private key ever exists
+  // in here. Nothing to persist means nothing to lose.
+  //
+  // That matters because the container's home directory is NOT durable. Only
+  // the paths backed by named volumes in docker-compose.yml survive the
+  // container being recreated; everything else resets to the image. `gh`
+  // storing an OAuth token in ~/.config/gh is exactly that failure — it works
+  // until the container is recreated, then `gh` is silently logged out.
+  //
+  // GH_TOKEN is read by the gh CLI directly, so exporting it on your machine
+  // means `gh` is authenticated in here with no token stored in the container:
+  //   export GH_TOKEN=ghp_xxx      # ~/.zshrc; scopes: repo, read:org, gist
+  //
+  // THIS IS NOT A COMPLETE ANSWER, and the gap is not obvious. `${localEnv:...}`
+  // reads the environment of whatever machine HOSTS the container — your laptop
+  // for a local devcontainer, but the Codespaces VM in a Codespace, which has no
+  // reason to carry your token. So this covers local work only, and
+  // `gh auth login` inside the container is supported as the fallback: its
+  // config directory is on the `gh-config` volume in docker-compose.yml, so a
+  // login survives the container being recreated.
+  //
+  // Precedence between the two is verified rather than assumed: GH_TOKEN wins
+  // when it has a value, and when the host has NOT exported it this expands to
+  // an empty string, which gh ignores in favour of the stored login. So the two
+  // mechanisms compose instead of fighting.
+  //
+  // (Codespaces separately pre-authenticates gh with its own token, so in
+  // practice neither is usually needed there.)
+  "remoteEnv": {
+    "GH_TOKEN": "${localEnv:GH_TOKEN}"
+  },
   "postCreateCommand": "bash .devcontainer/scripts/devcontainer-phase.sh postcreate",
   // poststart, not postcreate: the Gortex daemon does not survive a container
   // stop/start, so it has to be brought back up on every boot.

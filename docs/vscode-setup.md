@@ -98,6 +98,102 @@ That needs a SonarCloud project and a `SONAR_TOKEN`, which live outside this rep
 
 ---
 
+## 6. Credentials — nothing is stored in the container
+
+**The container's home directory is not durable.** Only paths backed by a named volume in [`docker-compose.yml`](../.devcontainer/docker-compose.yml) — `~/.claude`, `~/.gortex`, `~/.gradle`, `~/.config/gh` — survive the container being recreated. Everything else resets to the image, including `~/.gnupg` and `~/.ssh`.
+
+That is not a bug to work around by persisting more; it is the reason to store as little as possible. SSH is the model: VS Code forwards your **ssh-agent as a socket**, so `git push` authenticates against a key that never leaves your machine, and it survives every rebuild because there is nothing in the container to lose.
+
+Three places state can live, and picking the wrong one is how this bites:
+
+| Where                     | Survives recreation          | Use for                          |
+| ------------------------- | ---------------------------- | -------------------------------- |
+| Your **host**             | yes — copied or forwarded in | git config, SSH keys, `GH_TOKEN` |
+| A **named volume**        | yes                          | `gh` login, caches               |
+| Container home, unvolumed | **no** — silently resets     | nothing you want to keep         |
+
+The first row is the one that surprises people: VS Code copies your host `~/.gitconfig` into the container on creation, so it is the **host** copy that wins, and editing git config inside the container works right up until the container is next recreated.
+
+### Signing commits
+
+Use your **SSH key**, not GPG. Git has signed with SSH keys since 2.34, GitHub verifies those signatures identically, and it reuses the agent VS Code already forwards — so the key needs no volume and never enters the container.
+
+**Run these on your own machine, not in the container.** VS Code copies your host `~/.gitconfig` into the container each time it is created, so git config set _inside_ the container is silently reverted the next time that happens — and the failure lands later, as a commit that suddenly will not sign.
+
+```bash
+# On your Mac / host, NOT in the container:
+git config --global gpg.format ssh
+git config --global user.signingkey "key::$(ssh-add -L | head -1)"
+git config --global commit.gpgsign true
+```
+
+**GitHub keeps authentication keys and signing keys in two separate lists.** Adding your key for SSH auth does not register it for signing, and until you add it again under _Settings → SSH and GPG keys → New SSH key_ with key type **Signing Key**, your commits show as Unverified while everything else works. That is the step people miss.
+
+Optionally, so `git log --show-signature` verifies locally too — this one **is** per-container, since the path must exist where git reads it:
+
+```bash
+printf '%s %s\n' "$(git config --global user.email)" "$(ssh-add -L | head -1)" \
+  > ~/.ssh/allowed_signers
+chmod 600 ~/.ssh/allowed_signers
+git config --global gpg.ssh.allowedSignersFile ~/.ssh/allowed_signers
+```
+
+`~/.ssh` is not on a volume, so a rebuild loses that file and `--show-signature` starts reporting `gpg.ssh.allowedSignersFile needs to be configured and exist`. Signing itself and GitHub's verification are unaffected; re-run the snippet.
+
+Using GPG instead is fine, but understand the trade: the keyring lives in `~/.gnupg`, which is on no volume, so a rebuild destroys it — and the resulting error names a missing key rather than the rebuild that caused it. That is the failure this section exists to stop you rediscovering.
+
+### The `gh` CLI
+
+Two ways in, and they compose — use whichever suits where you are working.
+
+**Either export a token on your machine.** [`devcontainer.json`](../.devcontainer/devcontainer.json) passes `GH_TOKEN` through, so nothing is stored in the container:
+
+```bash
+export GH_TOKEN=ghp_xxx      # ~/.zshrc — PAT with scopes: repo, read:org, gist
+```
+
+**Or log in inside the container.** `~/.config/gh` is on the `gh-config` named volume, so the login survives the container being recreated. The prompts, with the answers this container wants:
+
+```text
+$ gh auth login
+
+? Where do you use GitHub?                                    GitHub.com
+? What is your preferred protocol for Git operations?         SSH
+? Generate a new SSH key to add to your GitHub account?       No      <- IMPORTANT
+? How would you like to authenticate GitHub CLI?              Login with a web browser
+```
+
+**Answer _No_ to the SSH key question.** It is the one answer that is not obvious and the only one that does damage if you get it wrong. Your key already reaches the container through the forwarded agent, so there is nothing to generate. Answering _Yes_ writes a **new private key into `~/.ssh` inside the container** and uploads its public half to your GitHub account — and `~/.ssh` is not on a volume, so the private key dies with the container while the public key stays registered on your account forever. You end up accumulating orphaned keys on GitHub that match nothing, having also put key material in the one place this setup is designed to keep it out of.
+
+**SSH** for the protocol matches the agent that `git push` already uses. HTTPS would work, but then git operations need a credential helper and a token of their own — a second mechanism to keep alive for no gain.
+
+**Login with a web browser** prints a one-time code and waits. VS Code usually forwards the URL to your host browser; if it does not, copy the URL out of the terminal and open it on your own machine — the code pairs the session, so it does not matter which machine's browser completes it.
+
+Non-interactively, the same thing:
+
+```bash
+gh auth login --hostname github.com --git-protocol ssh --skip-ssh-key
+gh auth login --with-token < token.txt    # or pipe a PAT straight in
+```
+
+`--skip-ssh-key` is exactly the _No_ above. Without it, `--git-protocol ssh` makes gh offer to create and upload a key whenever it does not find one it recognises.
+
+> **Where the token lands.** gh prefers a system credential store and falls back to a plain-text `~/.config/gh/hosts.yml` when it cannot find one. A container has no keyring daemon, so it is always the file here — which is precisely what the `gh-config` volume persists. `gh auth status` prints the path it actually used, if you want to confirm.
+
+**Neither mechanism alone is enough, and the reason is easy to miss.** `${localEnv:...}` reads the environment of the machine _hosting_ the container — your laptop for a local devcontainer, but the **Codespaces VM** in a Codespace, which has no reason to carry your token. So the export covers local work only, and in-container login is the fallback that works everywhere. (Codespaces separately pre-authenticates `gh` with its own token, so usually neither is needed there.)
+
+Precedence between the two is verified rather than assumed:
+
+| `GH_TOKEN`                         | What `gh` uses   |
+| ---------------------------------- | ---------------- |
+| set to a value                     | the env token    |
+| empty — the host never exported it | the stored login |
+| unset entirely                     | the stored login |
+
+The middle row is the one that matters: `remoteEnv` always defines the variable, so on a host without it `GH_TOKEN` arrives as an empty string. `gh` ignores that in favour of the stored login, which is why turning on the passthrough cannot break an in-container `gh auth login`.
+
+---
+
 ## Where the settings actually live
 
 Two files, and the split is deliberate rather than historical:

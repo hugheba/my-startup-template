@@ -1,6 +1,12 @@
 #!/usr/bin/env node
-// Regenerates the `Services` group of .devcontainer/homepage/services.yaml from
-// declarations that already exist — no new manifest, no new metadata format.
+// Regenerates two files under .devcontainer/homepage/ from declarations that
+// already exist — no new manifest, no new metadata format:
+//
+//   services.yaml    the `Services` group, from devcontainer.json forwardPorts
+//   bookmarks.yaml   the repo link, from the `origin` git remote
+//
+// Only services.yaml is drift-gated by `--check`; bookmarks.yaml differs per
+// fork by design, and the reason is recorded beside the code that writes it.
 //
 // WHY devcontainer.json AND NOT THE PACKAGE MANIFESTS
 // ---------------------------------------------------
@@ -349,7 +355,8 @@ const bookmarksDoc = [
 // the devcontainer lifecycle steps use. The output is committed, so it can go
 // stale the moment someone forwards a port without re-running — and a stale
 // dashboard is worse than none, because it is confidently wrong about where a
-// service lives. CI can run this to make that unmergeable.
+// service lives. CI runs this in the required Lint + Typecheck + Build + Test
+// job, which makes that unmergeable.
 //
 // Only services.yaml is compared — see the note above bookmarksDoc.
 if (process.argv.includes('--check')) {

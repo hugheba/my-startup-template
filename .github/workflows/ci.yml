@@ -116,6 +116,25 @@ jobs:
       - name: Markdown lint
         run: pnpm lint:md
 
+      # The dashboard's generated services.yaml is committed, so it goes stale
+      # the moment someone forwards a port without regenerating — and a stale
+      # dashboard is worse than none, because it is confidently wrong about
+      # where a service lives. AGENTS.md described this as gated; it was not.
+      # The check existed and ran nowhere, which is the same shape as the `Test`
+      # gate that once passed having executed no tests.
+      #
+      # Here rather than its own job for the reason spelled out below the Boot
+      # check: a new job needs its `name` registered in branch protection before
+      # it blocks anything, while a step in an already-required job blocks
+      # immediately. The job name is deliberately not updated to mention it —
+      # renaming a required status check silently un-gates the branch.
+      #
+      # Only services.yaml is compared. bookmarks.yaml is generated from the
+      # `origin` remote and therefore differs per fork by design, so gating it
+      # would fail CI for everyone who forks this template.
+      - name: Dashboard in sync with forwarded ports
+        run: pnpm verify:dashboard
+
       - name: Lint + Typecheck + Build + Test
         run: pnpm turbo run lint typecheck build test
 

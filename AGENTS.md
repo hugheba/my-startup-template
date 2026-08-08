@@ -185,7 +185,9 @@ To add a service to the dashboard:
 
 ```jsonc
 // .devcontainer/devcontainer.json
-"forwardPorts": [3000, 5432, 8080, 8081, 9000],
+// A bare number is a port in the WORKSPACE container. A sidecar must be
+// written "service:port" — see the warning below.
+"forwardPorts": [3000, "db:5432", "adminer:8080", "homepage:8081", 9000],
 "portsAttributes": {
   "9000": { "label": "Quarkus dev", "protocol": "http" }
 }
@@ -195,9 +197,14 @@ To add a service to the dashboard:
 pnpm dashboard:sync   # regenerate; commit the result
 ```
 
+**A sidecar written as a bare port number is silently unreachable.** In a Compose devcontainer a bare number always means a port in the _primary_ container, so `8080` forwards from `app` — where nothing listens — while Adminer sits perfectly healthy in its own container answering on `adminer:8080`. Nothing errors. The forward is created, the container is healthy, `docker compose ps` is clean, and every check reachable from inside the workspace passes; only your browser gets nothing. This template shipped that bug, and it is the reason the generator now cross-checks each entry against `docker-compose.yml`.
+
+**Host and container port must be the same number for a sidecar**, which is why Homepage runs on `PORT: 8081` internally rather than its default 3000. Two independent routes reach these services — Docker's published port and VS Code's devcontainer forward — and they only agree on one URL if the two halves match. They also collide: Homepage's default 3000 is the Next.js dev port, so `homepage:3000` and the dev server would contend for one local port. The generator fails on a mismatch rather than emitting a tile that works via one route and not the other.
+
 - **`label` is required.** A forwarded port without one fails the generator rather than becoming an anonymous tile.
+- **`portsAttributes` keys must match the `forwardPorts` entry exactly**, `service:` prefix included. `"8080"` and `"adminer:8080"` are different keys, and a mismatch loses the label rather than warning.
 - **`protocol: "http"` makes a tile clickable and monitored.** Omit it for non-HTTP services — a browser link to Postgres is noise, so it renders as an informational tile instead.
-- **Only standard devcontainer.json fields are used.** Custom keys would work at runtime but leave a permanent schema warning in that file, so the generator derives which container serves a port from `docker-compose.yml` instead.
+- **Only standard devcontainer.json fields are used.** Custom keys would work at runtime but leave a permanent schema warning in that file, so the generator cross-checks against `docker-compose.yml` instead.
 - **`pnpm verify:dashboard` gates drift.** The generated `services.yaml` is committed, so it can go stale the moment someone forwards a port without regenerating — and a stale dashboard is worse than none, because it is confidently wrong about where a service lives.
 - **Anything that is not a forwarded port** goes in `.devcontainer/homepage/services.extra.yaml`, appended verbatim and never clobbered by a regeneration.
 

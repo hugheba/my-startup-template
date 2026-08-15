@@ -31,6 +31,19 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   transpilePackages: ['@my-startup-template/ui'],
   typedRoutes: true,
+  // Opt out of Vercel's immutable static file upload on Vercel only.
+  //
+  // Vercel's deploy step cannot patch preview comments onto immutable
+  // (content-hash-deduped) static uploads, and its version gate for the
+  // build-time-injection fix rejects stable 16.3.x even though 16.3.1 carries
+  // the required adapter API — the error fires after "Build Completed":
+  //   Cannot patch preview comments when immutable static file upload is
+  //   enabled. Upgrade to next@v16.3.0-canary.32 or newer to resolve this.
+  // Setting this to false is the documented opt-out; it restores the older
+  // upload path so the deploy succeeds. Scoped to Vercel because that is the
+  // only platform with the patching step; Amplify/local builds are unaffected.
+  // Remove once Vercel fixes the version comparison (see issue #29).
+  ...(isVercel ? { supportsImmutableAssets: false } : {}),
   ...(isVercel
     ? {}
     : {

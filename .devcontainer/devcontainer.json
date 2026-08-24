@@ -155,7 +155,13 @@
         "mikestead.dotenv",
         "vivaxy.vscode-conventional-commits",
         "anthropic.claude-code",
-        "github.copilot-chat"
+        "github.copilot-chat",
+        // Gortex's editor client. The graph itself is served to agents over
+        // MCP (see .mcp.json); this surfaces the same index in the editor and
+        // talks to the daemon poststart already started, so it needs no
+        // separate setup and binds no port.
+        "gortex.gortex",
+        "simon-p.agent-flow"
       ],
       // SonarLint's language server is a JVM process: it needs a real JRE 21+
       // and a real Node — the extension host spawns both itself, and it spawns

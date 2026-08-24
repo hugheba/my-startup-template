@@ -24,7 +24,7 @@
       "env": { "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}" }
     },
     "gortex": {
-      "_comment": "Code-intelligence graph over this repo (replaces CodeGraphContext + GitNexus). Installed by mise (see mise.toml) and resolved through its shim on PATH, then indexed by postCreateCommand; bare `gortex` also resolves for host users who installed it themselves. Needs no credential and binds no port.",
+      "_comment": "Code-intelligence graph over this repo. Installed by mise (see mise.toml) and resolved through its shim on PATH; the daemon is started and this repo tracked by postStartCommand, not postCreateCommand — the daemon does not survive a container stop/start. Bare `gortex` also resolves for host users who installed it themselves. Needs no credential and binds no port. See ADR-0014 for what it replaced and why that must not be reintroduced.",
       "command": "gortex",
       "args": ["mcp"]
     }

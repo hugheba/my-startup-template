@@ -36,6 +36,9 @@ coverage/
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+# Copilot Chat's MCP servers — shared config, same as the two above.
+# Claude Code's equivalent (.mcp.json) is committed at the repo root.
+!.vscode/mcp.json
 
 # vercel
 .vercel/

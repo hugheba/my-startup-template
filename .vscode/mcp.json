@@ -1,0 +1,23 @@
+{
+  // Copilot Chat's MCP servers. VS Code reads THIS file; Claude Code reads
+  // `.mcp.json` at the repo root. Two files is not drift for its own sake —
+  // the two clients genuinely disagree on both the filename and the top-level
+  // key (`servers` here, `mcpServers` there), so neither can be a symlink to
+  // the other. Gortex is declared in both deliberately: a graph that only one
+  // agent can see is a graph the other one greps around.
+  //
+  // Everything else in `.mcp.json` (context7, playwright, shadcn, supabase) is
+  // deliberately NOT mirrored here — those are Claude Code's tool surface, and
+  // Copilot Chat ships its own equivalents.
+  //
+  // `gortex` resolves through the mise shim on PATH. The daemon it talks to is
+  // started by the poststart phase (.devcontainer/scripts/poststart.d/001-gortex.sh),
+  // so this needs no setup of its own, binds no port and takes no credential.
+  "servers": {
+    "gortex": {
+      "type": "stdio",
+      "command": "gortex",
+      "args": ["mcp"]
+    }
+  }
+}

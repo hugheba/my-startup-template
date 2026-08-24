@@ -13,5 +13,6 @@
       "Bash(node:*)"
     ]
   },
+  "enabledMcpjsonServers": ["gortex"],
   "disabledMcpjsonServers": ["supabase"]
 }

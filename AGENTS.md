@@ -374,7 +374,16 @@ git push origin main:refs/heads/deploy/stage main:refs/heads/deploy/prod
 
 ## Code intelligence (Gortex)
 
-[Gortex](https://github.com/zzet/gortex) indexes this repo into a queryable graph and serves it to agents over MCP. It is baked into the dev container and indexed by `postCreateCommand`; the MCP server is registered in `.mcp.json`.
+[Gortex](https://github.com/zzet/gortex) indexes this repo into a queryable graph and serves it to agents over MCP. It is baked into the dev container by mise, and the **poststart** phase ([`001-gortex.sh`](.devcontainer/scripts/poststart.d/001-gortex.sh)) starts the daemon and tracks this repo — poststart rather than postcreate because the daemon does not survive a container stop/start.
+
+**Both agents are wired to it, in two files, because the two clients disagree on the format:**
+
+| Client       | File               | Top-level key |
+| ------------ | ------------------ | ------------- |
+| Claude Code  | `.mcp.json`        | `mcpServers`  |
+| Copilot Chat | `.vscode/mcp.json` | `servers`     |
+
+Neither can be a symlink to the other. Add Gortex to both or not at all — a graph only one agent can see is a graph the other one greps around. `.claude/settings.json` lists it in `enabledMcpjsonServers` so a fresh clone connects without an approval prompt.
 
 Prefer graph queries over blind file reads when locating code:
 
@@ -384,7 +393,7 @@ gortex query <...>        # query the graph directly
 gortex status             # tracked repos, node/edge counts, index freshness
 ```
 
-It runs entirely inside the container over a unix socket — no network port, no credential. Telemetry is hard-disabled in the image (`GORTEX_TELEMETRY=0`) and re-asserted at `postCreate`.
+It runs entirely inside the container over a unix socket — no network port, no credential. Telemetry is hard-disabled in the image (`GORTEX_TELEMETRY=0`) and re-asserted at poststart.
 
 It **replaces** CodeGraphContext and GitNexus; neither should be reintroduced.
 
@@ -398,9 +407,9 @@ packages/config/         eslint, tsconfig, tailwind, prettier
 scripts/                 Python (UV) ad-hoc scripts + custom MCPs
 .devcontainer/           Codespaces config
 .github/                 CI, security, deploy workflows + Copilot instructions
-.mcp.json                MCP servers (project scope, shared)
+.mcp.json                MCP servers for Claude Code (project scope, shared)
 .claude/                 Claude Code settings (permissions, MCP approvals)
-.vscode/                 Workspace settings + recommended extensions
+.vscode/                 Workspace settings, recommended extensions, Copilot's MCP servers
 docs/superpowers/        Design specs and implementation plans
 ```
 

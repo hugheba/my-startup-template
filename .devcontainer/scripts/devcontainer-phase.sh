@@ -52,6 +52,7 @@ POSTCREATE_STEPS=(
   001-mise-trust.sh
   002-node-deps.sh
   003-python-deps.sh
+  004-gortex-agents.sh
 )
 
 POSTSTART_STEPS=(

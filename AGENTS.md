@@ -403,6 +403,18 @@ and which `gortex init` rewrites from scratch — stripping comments, reordering
 newline `.editorconfig` requires. Installing it at postcreate would dirty the tree on every container
 create. Never document anything inside that file; it belongs here.
 
+**Its hooks hardcode the version-pinned binary**
+(`~/.local/share/mise/installs/github-zzet-gortex/<version>/gortex`) rather than the bare shim the other
+adapters use. Renovate owns `GORTEX_VERSION` in `.devcontainer/.env`, so a routine bump points all eight
+hooks at a directory that no longer exists. **A container rebuild repairs them; an in-place
+`mise install` does not** — re-run `gortex install --agents claude-code` if a bump landed without a
+rebuild. Do **not** run `gortex upgrade --run`, which `gortex doctor` suggests: it re-installs the binary
+through its own detected install method and fights the mise pin.
+
+Anything the **editor** spawns runs from the extension host's cwd, not the workspace, so a mise shim
+finds no config and exits — which is why `github:zzet/gortex` is in the Dockerfile's `mise use -g` list
+alongside the language runtimes. The comment block above that `RUN` is the full write-up.
+
 Prefer graph queries over blind file reads when locating code:
 
 ```bash

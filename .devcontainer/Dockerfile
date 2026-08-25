@@ -179,12 +179,23 @@ RUN mise trust && mise install
 # a normal terminal. It shows up only from outside: `cd /tmp && node --version`
 # fails with `No version is set for shim: node`, and so does anything the editor
 # or a global npm CLI forks from its own working directory.
+#
+# `github:zzet/gortex` is here for an editor EXTENSION rather than a language
+# server, and it fails more quietly than any of the above. gortex.gortex spawns
+# `gortex mcp` and `gortex daemon status` from the extension host's own cwd
+# (/vscode/vscode-server/bin/...), so the shim finds no config and exits 1. The
+# panel then sits on a spinner forever with the real `No version is set for
+# shim: gortex` visible only in its output channel — and the daemon it is
+# failing to reach is up and healthy the whole time, which sends you looking in
+# exactly the wrong place. MCP over stdio has the same shape as the empty-stdout
+# case above: the client sees a server that started and never spoke.
 RUN mise use -g "python@$(mise current python)" \
                 "node@$(mise current node)" \
                 "java@$(mise current java)" \
                 "kotlin@$(mise current kotlin)" \
                 "gradle@$(mise current gradle)" \
-                "rust@$(mise current rust)"
+                "rust@$(mise current rust)" \
+                "github:zzet/gortex@$(mise current github:zzet/gortex)"
 
 # JAVA_HOME, resolved to the mise install rather than left to the shims.
 #

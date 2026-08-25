@@ -374,7 +374,46 @@ git push origin main:refs/heads/deploy/stage main:refs/heads/deploy/prod
 
 ## Code intelligence (Gortex)
 
-[Gortex](https://github.com/zzet/gortex) indexes this repo into a queryable graph and serves it to agents over MCP. It is baked into the dev container and indexed by `postCreateCommand`; the MCP server is registered in `.mcp.json`.
+[Gortex](https://github.com/zzet/gortex) indexes this repo into a queryable graph and serves it to agents over MCP. It is baked into the dev container by mise, and the **poststart** phase ([`001-gortex.sh`](.devcontainer/scripts/poststart.d/001-gortex.sh)) starts the daemon and tracks this repo — poststart rather than postcreate because the daemon does not survive a container stop/start.
+
+**Both agents are wired to it, but in different places** — and deliberately not both in `.mcp.json`:
+
+| Client       | File                            | Key          | Committed?                     |
+| ------------ | ------------------------------- | ------------ | ------------------------------ |
+| Claude Code  | `~/.claude.json` (machine-wide) | `mcpServers` | no — provisioned at postcreate |
+| Copilot Chat | `.vscode/mcp.json` (repo)       | `servers`    | yes                            |
+
+A `gortex` entry in `.mcp.json` is the **old** wiring. Gortex moved Claude Code's registration
+machine-wide, and `gortex doctor` reports a project-level stanza as an `outdated stanza` for as long as
+one exists — it turns `+` the moment the entry is gone. It is not a formatting nit: the stanza was
+byte-identical to the canonical one and still flagged, and running `gortex install` did not clear it.
+Do not re-add it; `.mcp.json` is for the servers Gortex does not own.
+
+That leaves Copilot's half committed and Claude's half not, so
+[`004-gortex-agents.sh`](.devcontainer/scripts/postcreate.d/004-gortex-agents.sh) runs
+`gortex install --agents claude-code` at postcreate to write `~/.claude.json`, the user skills and the
+hooks. It runs at postcreate rather than poststart because `/home/vscode/.claude` is a named volume and
+survives a rebuild. **A host checkout outside the dev container gets no Claude wiring until
+`gortex install` is run once by hand** — that is Gortex's own once-per-machine step, and the `check`
+half of that script fails loudly when it has not happened.
+
+`vscode` is deliberately absent from that `--agents` list even though it **is** the Copilot Chat harness
+(there is no `copilot` or `github` adapter). Its only output is `.vscode/mcp.json`, which is committed
+and which `gortex init` rewrites from scratch — stripping comments, reordering keys, dropping the final
+newline `.editorconfig` requires. Installing it at postcreate would dirty the tree on every container
+create. Never document anything inside that file; it belongs here.
+
+**Its hooks hardcode the version-pinned binary**
+(`~/.local/share/mise/installs/github-zzet-gortex/<version>/gortex`) rather than the bare shim the other
+adapters use. Renovate owns `GORTEX_VERSION` in `.devcontainer/.env`, so a routine bump points all eight
+hooks at a directory that no longer exists. **A container rebuild repairs them; an in-place
+`mise install` does not** — re-run `gortex install --agents claude-code` if a bump landed without a
+rebuild. Do **not** run `gortex upgrade --run`, which `gortex doctor` suggests: it re-installs the binary
+through its own detected install method and fights the mise pin.
+
+Anything the **editor** spawns runs from the extension host's cwd, not the workspace, so a mise shim
+finds no config and exits — which is why `github:zzet/gortex` is in the Dockerfile's `mise use -g` list
+alongside the language runtimes. The comment block above that `RUN` is the full write-up.
 
 Prefer graph queries over blind file reads when locating code:
 
@@ -384,7 +423,7 @@ gortex query <...>        # query the graph directly
 gortex status             # tracked repos, node/edge counts, index freshness
 ```
 
-It runs entirely inside the container over a unix socket — no network port, no credential. Telemetry is hard-disabled in the image (`GORTEX_TELEMETRY=0`) and re-asserted at `postCreate`.
+It runs entirely inside the container over a unix socket — no network port, no credential. Telemetry is hard-disabled in the image (`GORTEX_TELEMETRY=0`) and re-asserted at poststart.
 
 It **replaces** CodeGraphContext and GitNexus; neither should be reintroduced.
 
@@ -398,9 +437,9 @@ packages/config/         eslint, tsconfig, tailwind, prettier
 scripts/                 Python (UV) ad-hoc scripts + custom MCPs
 .devcontainer/           Codespaces config
 .github/                 CI, security, deploy workflows + Copilot instructions
-.mcp.json                MCP servers (project scope, shared)
+.mcp.json                MCP servers for Claude Code (project scope, shared)
 .claude/                 Claude Code settings (permissions, MCP approvals)
-.vscode/                 Workspace settings + recommended extensions
+.vscode/                 Workspace settings, recommended extensions, Copilot's MCP servers
 docs/superpowers/        Design specs and implementation plans
 ```
 

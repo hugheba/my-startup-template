@@ -22,11 +22,6 @@
         "${SUPABASE_PROJECT_REF}"
       ],
       "env": { "SUPABASE_ACCESS_TOKEN": "${SUPABASE_ACCESS_TOKEN}" }
-    },
-    "gortex": {
-      "_comment": "Code-intelligence graph over this repo (replaces CodeGraphContext + GitNexus). Installed by mise (see mise.toml) and resolved through its shim on PATH, then indexed by postCreateCommand; bare `gortex` also resolves for host users who installed it themselves. Needs no credential and binds no port.",
-      "command": "gortex",
-      "args": ["mcp"]
     }
   }
 }

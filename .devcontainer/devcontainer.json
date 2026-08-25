@@ -155,7 +155,19 @@
         "mikestead.dotenv",
         "vivaxy.vscode-conventional-commits",
         "anthropic.claude-code",
-        "github.copilot-chat"
+        "github.copilot-chat",
+        // Gortex's editor client. The graph itself is served to agents over
+        // MCP, wired per-client rather than in .mcp.json — Copilot Chat from
+        // .vscode/mcp.json, Claude Code from machine-level ~/.claude.json; see
+        // AGENTS.md, "Code intelligence (Gortex)". This surfaces the same
+        // index in the editor and talks to the daemon poststart already
+        // started, so it needs no separate setup and binds no port.
+        //
+        // It also spawns `gortex` from outside the repo, so it needs the
+        // global mise default the Dockerfile sets — the same gotcha the
+        // SonarLint note below describes.
+        "gortex.gortex",
+        "simon-p.agent-flow"
       ],
       // SonarLint's language server is a JVM process: it needs a real JRE 21+
       // and a real Node — the extension host spawns both itself, and it spawns

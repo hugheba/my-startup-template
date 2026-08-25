@@ -19,7 +19,9 @@
     "mikestead.dotenv",
     "vivaxy.vscode-conventional-commits",
     "anthropic.claude-code",
-    "github.copilot-chat"
+    "github.copilot-chat",
+    "gortex.gortex",
+    "simon-p.agent-flow"
   ],
   "unwantedRecommendations": ["github.copilot", "rust-lang.rust"]
 }

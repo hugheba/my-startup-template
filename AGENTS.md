@@ -376,16 +376,32 @@ git push origin main:refs/heads/deploy/stage main:refs/heads/deploy/prod
 
 [Gortex](https://github.com/zzet/gortex) indexes this repo into a queryable graph and serves it to agents over MCP. It is baked into the dev container by mise, and the **poststart** phase ([`001-gortex.sh`](.devcontainer/scripts/poststart.d/001-gortex.sh)) starts the daemon and tracks this repo — poststart rather than postcreate because the daemon does not survive a container stop/start.
 
-**Both agents are wired to it, in two files, because the two clients disagree on the format:**
+**Both agents are wired to it, but in different places** — and deliberately not both in `.mcp.json`:
 
-| Client       | File               | Top-level key |
-| ------------ | ------------------ | ------------- |
-| Claude Code  | `.mcp.json`        | `mcpServers`  |
-| Copilot Chat | `.vscode/mcp.json` | `servers`     |
+| Client       | File                            | Key          | Committed?                     |
+| ------------ | ------------------------------- | ------------ | ------------------------------ |
+| Claude Code  | `~/.claude.json` (machine-wide) | `mcpServers` | no — provisioned at postcreate |
+| Copilot Chat | `.vscode/mcp.json` (repo)       | `servers`    | yes                            |
 
-Neither can be a symlink to the other. **`gortex init` rewrites `.vscode/mcp.json` from scratch** — it strips comments, reorders keys and drops the final newline — so do not document anything inside that file; it belongs here instead. Add Gortex to both or not at all — a graph only one agent can see is a graph the other one greps around. `.claude/settings.json` lists it in `enabledMcpjsonServers` so a fresh clone connects without an approval prompt.
+A `gortex` entry in `.mcp.json` is the **old** wiring. Gortex moved Claude Code's registration
+machine-wide, and `gortex doctor` reports a project-level stanza as an `outdated stanza` for as long as
+one exists — it turns `+` the moment the entry is gone. It is not a formatting nit: the stanza was
+byte-identical to the canonical one and still flagged, and running `gortex install` did not clear it.
+Do not re-add it; `.mcp.json` is for the servers Gortex does not own.
 
-Both files are committed, so a clone has them already. What a clone does **not** have is the machine-level half — `~/.claude.json`, user skills and hooks live outside the bind mount and cannot be committed — so [`004-gortex-agents.sh`](.devcontainer/scripts/postcreate.d/004-gortex-agents.sh) runs `gortex install --agents claude-code,vscode` at postcreate to fill it in. (`vscode` **is** the Copilot Chat harness; there is no `copilot` or `github` adapter.) It runs at postcreate rather than poststart because `/home/vscode/.claude` is a named volume and survives a rebuild.
+That leaves Copilot's half committed and Claude's half not, so
+[`004-gortex-agents.sh`](.devcontainer/scripts/postcreate.d/004-gortex-agents.sh) runs
+`gortex install --agents claude-code` at postcreate to write `~/.claude.json`, the user skills and the
+hooks. It runs at postcreate rather than poststart because `/home/vscode/.claude` is a named volume and
+survives a rebuild. **A host checkout outside the dev container gets no Claude wiring until
+`gortex install` is run once by hand** — that is Gortex's own once-per-machine step, and the `check`
+half of that script fails loudly when it has not happened.
+
+`vscode` is deliberately absent from that `--agents` list even though it **is** the Copilot Chat harness
+(there is no `copilot` or `github` adapter). Its only output is `.vscode/mcp.json`, which is committed
+and which `gortex init` rewrites from scratch — stripping comments, reordering keys, dropping the final
+newline `.editorconfig` requires. Installing it at postcreate would dirty the tree on every container
+create. Never document anything inside that file; it belongs here.
 
 Prefer graph queries over blind file reads when locating code:
 

@@ -99,9 +99,9 @@ check() {
     echo "gortex-agent-claude-code: FAIL (no mcpServers.gortex in ~/.claude.json)"
   fi
 
-  # .vscode/mcp.json is JSONC — it carries comments explaining the duplication
-  # with .mcp.json — so this strips them before parsing rather than reaching for
-  # jq, which rejects the file outright.
+  # .vscode/mcp.json may be JSONC, so this strips comments before parsing rather
+  # than reaching for jq, which rejects such a file outright. gortex rewrites the
+  # file without comments, but a human may well add one back.
   if [ -f "$vscode_mcp" ] && node -e '
       const fs = require("fs");
       const raw = fs.readFileSync(process.argv[1], "utf8");

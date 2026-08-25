@@ -383,7 +383,7 @@ git push origin main:refs/heads/deploy/stage main:refs/heads/deploy/prod
 | Claude Code  | `.mcp.json`        | `mcpServers`  |
 | Copilot Chat | `.vscode/mcp.json` | `servers`     |
 
-Neither can be a symlink to the other. Add Gortex to both or not at all — a graph only one agent can see is a graph the other one greps around. `.claude/settings.json` lists it in `enabledMcpjsonServers` so a fresh clone connects without an approval prompt.
+Neither can be a symlink to the other. **`gortex init` rewrites `.vscode/mcp.json` from scratch** — it strips comments, reorders keys and drops the final newline — so do not document anything inside that file; it belongs here instead. Add Gortex to both or not at all — a graph only one agent can see is a graph the other one greps around. `.claude/settings.json` lists it in `enabledMcpjsonServers` so a fresh clone connects without an approval prompt.
 
 Both files are committed, so a clone has them already. What a clone does **not** have is the machine-level half — `~/.claude.json`, user skills and hooks live outside the bind mount and cannot be committed — so [`004-gortex-agents.sh`](.devcontainer/scripts/postcreate.d/004-gortex-agents.sh) runs `gortex install --agents claude-code,vscode` at postcreate to fill it in. (`vscode` **is** the Copilot Chat harness; there is no `copilot` or `github` adapter.) It runs at postcreate rather than poststart because `/home/vscode/.claude` is a named volume and survives a rebuild.
 

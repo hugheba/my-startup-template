@@ -28,16 +28,29 @@ REPO_ROOT="${REPO_ROOT:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../../.." && 
 # assistants a future release adds.
 #
 # There is no `copilot` or `github` adapter: `vscode` IS Copilot Chat's
-# harness — `gortex install --print-config vscode` writes .vscode/mcp.json and
-# points at the Copilot MCP docs. Both names are validated below, so a rename
-# upstream fails loudly here instead of quietly configuring nothing.
-GORTEX_AGENTS="claude-code,vscode"
+# harness — `gortex install --print-config vscode` writes .vscode/mcp.json.
+#
+# BOTH harnesses are configured, but only one of them here. `vscode` is
+# deliberately NOT in this list, because its only output is .vscode/mcp.json —
+# a file that is COMMITTED, and that gortex rewrites from scratch: running it
+# strips the comments explaining why the wiring is duplicated, drops the final
+# newline .editorconfig requires, and leaves a dirty working tree on every
+# container create. Verified, not assumed: `gortex init` did exactly that here.
+# The committed file already configures Copilot for every clone, so there is
+# nothing for install to add — `check` below verifies it regardless, which is
+# what catches someone deleting it.
+GORTEX_AGENTS="claude-code"
+
+# Validated against --print-config so an upstream rename fails loudly rather
+# than quietly configuring nothing. Includes the adapter we do not install, so
+# a rename of THAT one is caught too.
+GORTEX_AGENTS_VERIFY="claude-code,vscode"
 
 apply() {
   cd "$REPO_ROOT" || return 1
 
   local agent
-  for agent in ${GORTEX_AGENTS//,/ }; do
+  for agent in ${GORTEX_AGENTS_VERIFY//,/ }; do
     if ! gortex install --print-config "$agent" >/dev/null 2>&1; then
       echo "gortex-agents: unknown adapter '$agent' — refusing to run install" >&2
       return 1
@@ -61,6 +74,17 @@ apply() {
     --agents "$GORTEX_AGENTS" \
     --hook-mode enrich \
     --no-progress || return 1
+
+  # KNOWN SHARP EDGE, and the reason this step is worth having beyond a first
+  # boot: the hooks gortex writes into ~/.claude/settings.local.json hardcode
+  # the ABSOLUTE, VERSION-PINNED binary path
+  # (~/.local/share/mise/installs/github-zzet-gortex/<version>/gortex), not the
+  # `gortex` shim that the gemini and opencode adapters use. So bumping
+  # GORTEX_VERSION in .devcontainer/.env — which Renovate does on its own —
+  # leaves every one of those hooks pointing at an install directory that no
+  # longer exists. A container rebuild re-runs this step and repairs them; an
+  # in-place `mise install` does not. Re-run this script by hand after a bump
+  # outside a rebuild.
 }
 
 check() {

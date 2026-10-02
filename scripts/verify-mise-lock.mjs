@@ -275,6 +275,27 @@ if (tag !== env.GITLEAKS_VERSION) {
   process.exit(1);
 }
 
+// --- jdtls: a pin the version field does not carry -------------------------
+// The jdtls archive name has a build stamp (JDTLS_BUILD) that is not part of
+// its version, so the version check above passes even when only the stamp was
+// bumped — leaving mise.lock pointing at, and checksumming, the OLD archive.
+// mise's version templating cannot split the stamp back out (tested), so it
+// stays a separate key and is checked here by its effect: every locked jdtls
+// URL must name the stamp the manifest pins.
+const jdtlsUrls = [
+  ...lockSrc.matchAll(/^url = "(https:\/\/download\.eclipse\.org\/jdtls\/[^"]+)"$/gm),
+].map((m) => m[1]);
+const staleJdtls = jdtlsUrls.filter((u) => !u.includes(`-${env.JDTLS_BUILD}.tar.gz`));
+if (declared.has('http:jdtls') && (jdtlsUrls.length === 0 || staleJdtls.length > 0)) {
+  console.error(
+    `jdtls build stamp mismatch:\n` +
+      `  ${ENV_FILE} pins JDTLS_BUILD=${env.JDTLS_BUILD}\n` +
+      `  ${LOCK} has ${staleJdtls[0] ?? 'no jdtls URL'}\n\n` +
+      `Regenerate and commit both files:\n  mise lock -p ${PLATFORMS.join(',')}\n`,
+  );
+  process.exit(1);
+}
+
 // The exempt tools are NAMED in the success line, not quietly subtracted. A
 // gate that reports "12 tools verified" while two of them were skipped is how a
 // hole stops being visible — the number would keep going up as coverage went

@@ -189,13 +189,22 @@ RUN mise trust && mise install
 # failing to reach is up and healthy the whole time, which sends you looking in
 # exactly the wrong place. MCP over stdio has the same shape as the empty-stdout
 # case above: the client sees a server that started and never spoke.
+#
+# The language servers and ktlint at the end are here for the same reason as
+# gortex: their whole job is to be spawned by an editor or by the Gortex daemon,
+# neither of which runs from the repo's cwd.
 RUN mise use -g "python@$(mise current python)" \
                 "node@$(mise current node)" \
                 "java@$(mise current java)" \
                 "kotlin@$(mise current kotlin)" \
                 "gradle@$(mise current gradle)" \
                 "rust@$(mise current rust)" \
-                "github:zzet/gortex@$(mise current github:zzet/gortex)"
+                "github:zzet/gortex@$(mise current github:zzet/gortex)" \
+                "npm:typescript-language-server@$(mise current npm:typescript-language-server)" \
+                "npm:pyright@$(mise current npm:pyright)" \
+                "ktlint@$(mise current ktlint)" \
+                "http:kotlin-lsp@$(mise current http:kotlin-lsp)" \
+                "http:jdtls@$(mise current http:jdtls)"
 
 # JAVA_HOME, resolved to the mise install rather than left to the shims.
 #

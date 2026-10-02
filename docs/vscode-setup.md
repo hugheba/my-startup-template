@@ -74,6 +74,8 @@ Nothing to click. The first time you open a Java or Kotlin file, several things 
 
 **Rust** behaves differently and needs nothing configured. rust-analyzer downloads its own server binary and finds `cargo` on `PATH`, which resolves through mise's shims — the Dockerfile registers a global default for `rust` precisely so that works when the extension host spawns `cargo` from outside the repo. `rust-src` is installed as a declared component in [`mise.toml`](../mise.toml); without it, hovering `Vec` or jumping into `Option` fails and rust-analyzer reports a sysroot error rather than a missing component.
 
+The extensions bring their own servers, but the toolchain also puts one per language on `PATH` — `typescript-language-server`, `pyright-langserver`, `rust-analyzer`, `intellij-server` (Kotlin) and `jdtls` — for anything that is not VS Code: other editors, and Gortex's semantic layer. See AGENTS.md, "Toolchain (mise)".
+
 Every JDK path the Java and Kotlin servers use is pinned to the container's GraalVM in [`.devcontainer/devcontainer.json`](../.devcontainer/devcontainer.json), including `JAVA_HOME` — so none of them download a JDK of their own, and none of them can drift from the version in [`.devcontainer/.env`](../.devcontainer/.env). If Java or Kotlin resolution ever looks wrong, that settings block is the place to look, and its comments explain what each path is for.
 
 ---

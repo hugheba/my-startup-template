@@ -69,6 +69,7 @@ url = "https://github.com/zzet/gortex/releases/download/v0.63.0/multiple.intoto.
 checksum = "sha256:bf3429b9248ee0227422971bf9e1e68838d43dc86af609be4d29bce1df67e93d"
 url = "https://github.com/zzet/gortex/releases/download/v0.63.0/gortex_darwin_arm64.tar.gz"
 url_api = "https://api.github.com/repos/zzet/gortex/releases/assets/502403777"
+provenance_verified = true
 
 [tools."github:zzet/gortex"."platforms.macos-arm64".provenance.slsa]
 url = "https://github.com/zzet/gortex/releases/download/v0.63.0/multiple.intoto.jsonl"
@@ -129,6 +130,49 @@ checksum = "sha256:9c0f7faeeb306cb14e4279a3e084ca6b596894089a0638e68a07c945a32c9
 url = "https://github.com/gradle/gradle-distributions/releases/download/v9.6.1/gradle-9.6.1-bin.zip"
 url_api = "https://api.github.com/repos/gradle/gradle-distributions/releases/assets/458711386"
 
+[[tools."http:jdtls"]]
+version = "1.61.0"
+backend = "http:jdtls"
+
+[tools."http:jdtls"."platforms.linux-arm64"]
+checksum = "sha256:338e7e73d61836651ba2453919a0d34fa763eb4e7c03342092309bffb8934c64"
+url = "https://download.eclipse.org/jdtls/milestones/1.61.0/jdt-language-server-1.61.0-202609031315.tar.gz"
+
+[tools."http:jdtls"."platforms.linux-x64"]
+checksum = "sha256:338e7e73d61836651ba2453919a0d34fa763eb4e7c03342092309bffb8934c64"
+url = "https://download.eclipse.org/jdtls/milestones/1.61.0/jdt-language-server-1.61.0-202609031315.tar.gz"
+
+[tools."http:jdtls"."platforms.macos-arm64"]
+checksum = "sha256:338e7e73d61836651ba2453919a0d34fa763eb4e7c03342092309bffb8934c64"
+url = "https://download.eclipse.org/jdtls/milestones/1.61.0/jdt-language-server-1.61.0-202609031315.tar.gz"
+
+[tools."http:jdtls"."platforms.macos-x64"]
+checksum = "sha256:338e7e73d61836651ba2453919a0d34fa763eb4e7c03342092309bffb8934c64"
+url = "https://download.eclipse.org/jdtls/milestones/1.61.0/jdt-language-server-1.61.0-202609031315.tar.gz"
+
+[[tools."http:kotlin-lsp"]]
+version = "263.4702.0"
+backend = "http:kotlin-lsp"
+
+[tools."http:kotlin-lsp".options]
+format = "zip"
+
+[tools."http:kotlin-lsp"."platforms.linux-arm64"]
+checksum = "sha256:ec7cb254a6662a07fff9f10e4365226afab6c40008f8a974c10ac5e785d6510f"
+url = "https://download.jetbrains.com/language-server/kotlin-server/263.4702.0/kotlin-server-263.4702.0-aarch64.tar.gz"
+
+[tools."http:kotlin-lsp"."platforms.linux-x64"]
+checksum = "sha256:1e11d2e5fefbf9ea215ad8dd6be95f2222897cd086e8cb7a661a52084a590405"
+url = "https://download.jetbrains.com/language-server/kotlin-server/263.4702.0/kotlin-server-263.4702.0.tar.gz"
+
+[tools."http:kotlin-lsp"."platforms.macos-arm64"]
+checksum = "sha256:95da3fc6d3b9092c7616345044a05edb85e5408dc648d081e4e433595c892bec"
+url = "https://download.jetbrains.com/language-server/kotlin-server/263.4702.0/kotlin-server-263.4702.0-aarch64.sit"
+
+[tools."http:kotlin-lsp"."platforms.macos-x64"]
+checksum = "sha256:62ab735947b1c855b505f64f5db8fbd7ff0b52a35ab1897938c6dbfc7b24c8a3"
+url = "https://download.jetbrains.com/language-server/kotlin-server/263.4702.0/kotlin-server-263.4702.0.sit"
+
 [[tools.java]]
 version = "graalvm-community-21.0.2"
 backend = "core:java"
@@ -176,6 +220,30 @@ checksum = "sha256:473dd66c7a3ef4b182065b3da670466c1bf2773a9dbb0ed8b33a39fe9d4f8
 url = "https://github.com/JetBrains/kotlin/releases/download/v2.4.10/kotlin-compiler-2.4.10.zip"
 url_api = "https://api.github.com/repos/JetBrains/kotlin/releases/assets/476575537"
 
+[[tools.ktlint]]
+version = "1.8.0"
+backend = "aqua:ktlint/ktlint"
+
+[tools.ktlint."platforms.linux-arm64"]
+checksum = "sha256:3722801dd119b96a2fbeda0b9d66f173994f249998c87bcf2274b51977aa8f77"
+url = "https://github.com/ktlint/ktlint/releases/download/1.8.0/ktlint-1.8.0.zip"
+url_api = "https://api.github.com/repos/ktlint/ktlint/releases/assets/316074523"
+
+[tools.ktlint."platforms.linux-x64"]
+checksum = "sha256:3722801dd119b96a2fbeda0b9d66f173994f249998c87bcf2274b51977aa8f77"
+url = "https://github.com/ktlint/ktlint/releases/download/1.8.0/ktlint-1.8.0.zip"
+url_api = "https://api.github.com/repos/ktlint/ktlint/releases/assets/316074523"
+
+[tools.ktlint."platforms.macos-arm64"]
+checksum = "sha256:3722801dd119b96a2fbeda0b9d66f173994f249998c87bcf2274b51977aa8f77"
+url = "https://github.com/ktlint/ktlint/releases/download/1.8.0/ktlint-1.8.0.zip"
+url_api = "https://api.github.com/repos/ktlint/ktlint/releases/assets/316074523"
+
+[tools.ktlint."platforms.macos-x64"]
+checksum = "sha256:3722801dd119b96a2fbeda0b9d66f173994f249998c87bcf2274b51977aa8f77"
+url = "https://github.com/ktlint/ktlint/releases/download/1.8.0/ktlint-1.8.0.zip"
+url_api = "https://api.github.com/repos/ktlint/ktlint/releases/assets/316074523"
+
 [[tools.node]]
 version = "24.18.1"
 backend = "core:node"
@@ -195,6 +263,14 @@ url = "https://nodejs.org/dist/v24.18.1/node-v24.18.1-darwin-arm64.tar.gz"
 [tools.node."platforms.macos-x64"]
 checksum = "sha256:6fb20fceacbb157c2f95825b80df4a454a0f6d81cdcd7bb81eeae9147e0e76ec"
 url = "https://nodejs.org/dist/v24.18.1/node-v24.18.1-darwin-x64.tar.gz"
+
+[[tools."npm:pyright"]]
+version = "1.1.414"
+backend = "npm:pyright"
+
+[[tools."npm:typescript-language-server"]]
+version = "6.0.1"
+backend = "npm:typescript-language-server"
 
 [[tools.opencode]]
 version = "1.18.10"
@@ -273,7 +349,7 @@ version = "1.97.1"
 backend = "core:rust"
 
 [tools.rust.options]
-components = "clippy,rust-src,rustfmt"
+components = "clippy,rust-analyzer,rust-src,rustfmt"
 
 [[tools.uv]]
 version = "0.12.0"

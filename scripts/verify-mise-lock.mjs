@@ -54,7 +54,17 @@ const PLATFORMS = ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64'];
 //   fetches over TLS. That is a real guarantee, but it is NOT the one the rest
 //   of this lockfile provides, and the difference is why this is a named
 //   exception rather than a silently relaxed rule.
-const NO_PLATFORM_CHECKSUMS = new Set(['rust']);
+//
+//   npm:typescript-language-server, npm:pyright — mise's npm backend hands the
+//   install to npm and writes a version-only entry: there is no per-platform
+//   asset to hash, because the same tarball serves every platform. Integrity is
+//   npm's: it checks each tarball against the registry's sha512 `integrity`
+//   field. Weaker than a reviewed hash in this file (the registry supplies
+//   both), and the exact top-level pin is what bounds it — neither package has
+//   runtime dependencies to float (pyright's one optional dep is macOS-only
+//   fsevents). A future npm: tool with a real dependency tree should not be
+//   added here without revisiting that.
+const NO_PLATFORM_CHECKSUMS = new Set(['rust', 'npm:typescript-language-server', 'npm:pyright']);
 
 const read = (p) => {
   try {

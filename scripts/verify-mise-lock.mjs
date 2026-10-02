@@ -61,9 +61,17 @@ const PLATFORMS = ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64'];
 //   npm's: it checks each tarball against the registry's sha512 `integrity`
 //   field. Weaker than a reviewed hash in this file (the registry supplies
 //   both), and the exact top-level pin is what bounds it — neither package has
-//   runtime dependencies to float (pyright's one optional dep is macOS-only
-//   fsevents). A future npm: tool with a real dependency tree should not be
-//   added here without revisiting that.
+//   a required runtime dependency to float.
+//
+//   One known float: pyright declares an OPTIONAL `fsevents: ~2.3.3`, which
+//   mise installs on macOS hosts only (the package is `os: [darwin]`, so the
+//   Linux container never gets it). 2.3.3 is the newest release in that range
+//   and has been since 2023, so today it resolves to one version, but nothing
+//   here would notice if a 2.3.4 shipped. mise's aube installer ignores
+//   --omit=optional (tested), so it cannot be dropped from this side.
+//
+//   A future npm: tool with a real dependency tree should not be added here
+//   without revisiting all of the above.
 const NO_PLATFORM_CHECKSUMS = new Set(['rust', 'npm:typescript-language-server', 'npm:pyright']);
 
 const read = (p) => {

@@ -206,6 +206,18 @@ RUN mise use -g "python@$(mise current python)" \
                 "http:kotlin-lsp@$(mise current http:kotlin-lsp)" \
                 "http:jdtls@$(mise current http:jdtls)"
 
+# Gortex finds its Kotlin server by running `kotlin-language-server`, the binary
+# name of the deprecated community server, and has no built-in spec for
+# JetBrains' `intellij-server`. Without this shim Kotlin enrichment silently
+# never starts. A wrapper rather than a .gortex.yaml command override because
+# it also serves any other client that still looks the old name up, and a
+# shim in ~/.local/bin needs no per-repo config. It resolves intellij-server
+# through the mise shim on PATH, so a KOTLIN_LSP_VERSION bump needs no edit
+# here.
+RUN printf '#!/bin/sh\nexec intellij-server --stdio "$@"\n' \
+      > /home/vscode/.local/bin/kotlin-language-server \
+ && chmod +x /home/vscode/.local/bin/kotlin-language-server
+
 # JAVA_HOME, resolved to the mise install rather than left to the shims.
 #
 # `ENV`, not a compose value, for the reason docker-compose.yml spells out: this

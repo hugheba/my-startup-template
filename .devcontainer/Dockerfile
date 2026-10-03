@@ -189,13 +189,34 @@ RUN mise trust && mise install
 # failing to reach is up and healthy the whole time, which sends you looking in
 # exactly the wrong place. MCP over stdio has the same shape as the empty-stdout
 # case above: the client sees a server that started and never spoke.
+#
+# The language servers and ktlint at the end are here for the same reason as
+# gortex: their whole job is to be spawned by an editor or by the Gortex daemon,
+# neither of which runs from the repo's cwd.
 RUN mise use -g "python@$(mise current python)" \
                 "node@$(mise current node)" \
                 "java@$(mise current java)" \
                 "kotlin@$(mise current kotlin)" \
                 "gradle@$(mise current gradle)" \
                 "rust@$(mise current rust)" \
-                "github:zzet/gortex@$(mise current github:zzet/gortex)"
+                "github:zzet/gortex@$(mise current github:zzet/gortex)" \
+                "npm:typescript-language-server@$(mise current npm:typescript-language-server)" \
+                "npm:pyright@$(mise current npm:pyright)" \
+                "ktlint@$(mise current ktlint)" \
+                "http:kotlin-lsp@$(mise current http:kotlin-lsp)" \
+                "http:jdtls@$(mise current http:jdtls)"
+
+# Gortex finds its Kotlin server by running `kotlin-language-server`, the binary
+# name of the deprecated community server, and has no built-in spec for
+# JetBrains' `intellij-server`. Without this shim Kotlin enrichment silently
+# never starts. A wrapper rather than a .gortex.yaml command override because
+# it also serves any other client that still looks the old name up, and a
+# shim in ~/.local/bin needs no per-repo config. It resolves intellij-server
+# through the mise shim on PATH, so a KOTLIN_LSP_VERSION bump needs no edit
+# here.
+RUN printf '#!/bin/sh\nexec intellij-server --stdio "$@"\n' \
+      > /home/vscode/.local/bin/kotlin-language-server \
+ && chmod +x /home/vscode/.local/bin/kotlin-language-server
 
 # JAVA_HOME, resolved to the mise install rather than left to the shims.
 #

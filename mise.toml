@@ -71,10 +71,50 @@ gradle = "{{ env.GRADLE_VERSION }}"
 # profile today and are named anyway, so a future profile change cannot remove
 # them silently.
 #
-# The one tool here whose lock entry carries no checksums — mise's backend
-# delegates to rustup. .devcontainer/.env explains why, and
+# Its lock entry carries no checksums (as do the npm: servers below) — mise's
+# backend delegates to rustup. .devcontainer/.env explains why, and
 # scripts/verify-mise-lock.mjs names the exemption instead of hiding it.
-rust = { version = "{{ env.RUST_VERSION }}", components = "rust-src,clippy,rustfmt" }
+#
+# rust-analyzer is a component too, NOT a separate tool: rustup ships the build
+# that matches this exact toolchain, so the language server can never disagree
+# with the compiler about the language it is analysing.
+rust = { version = "{{ env.RUST_VERSION }}", components = "rust-src,clippy,rustfmt,rust-analyzer" }
+
+# ---- language servers + linters ------------------------------------------
+# One LSP (Language Server Protocol) server per language above, on PATH, for
+# editors and Gortex's semantic layer alike. Rust's is the component above;
+# Python's linter (ruff) is a uv dev dependency in scripts/pyproject.toml.
+#
+# Neither npm: package has a postinstall step, so the --ignore-scripts problem
+# noted for Claude Code at the bottom of this file does not apply — both were
+# verified running after a plain `mise install`. mise.lock records no
+# per-platform checksum for npm: tools; npm's own registry integrity check is
+# what covers them, the same way rustup covers rust (see NO_PLATFORM_CHECKSUMS).
+"npm:typescript-language-server" = "{{ env.TYPESCRIPT_LANGUAGE_SERVER_VERSION }}"
+"npm:pyright" = "{{ env.PYRIGHT_VERSION }}" # pyright + pyright-langserver
+ktlint = "{{ env.KTLINT_VERSION }}"         # Kotlin linter/formatter
+
+# JetBrains' Kotlin LSP is not in mise's registry or aqua, and its archives are
+# on download.jetbrains.com rather than GitHub assets, hence `http:`. JetBrains
+# publishes a .sha256 beside every archive, which checksum_url turns into a real
+# per-platform entry in mise.lock. The macOS build is a .sit that is actually a
+# zip, so each platform names its own `format`.
+#
+# PER-PLATFORM, NOT ONE TEMPLATED `format`. mise matches a lock entry on the
+# tool's options exactly; a single `format = '{{ os(...) }}'` was locked once,
+# as "zip", so Linux resolved "tar.gz", found no matching entry, and
+# `mise install --locked` refused it. Both shapes were tested in a linux
+# container; this one installs from the committed lock on Linux and macOS.
+#
+# Start it as `intellij-server --stdio` (bin/ is on PATH); the old
+# kotlin-lsp.sh wrapper is deprecated upstream.
+"http:kotlin-lsp" = { version = "{{ env.KOTLIN_LSP_VERSION }}", platforms = { linux-x64 = { url = "https://download.jetbrains.com/language-server/kotlin-server/{{ version }}/kotlin-server-{{ version }}.tar.gz", checksum_url = "https://download.jetbrains.com/language-server/kotlin-server/{{ version }}/kotlin-server-{{ version }}.tar.gz.sha256", format = "tar.gz" }, linux-arm64 = { url = "https://download.jetbrains.com/language-server/kotlin-server/{{ version }}/kotlin-server-{{ version }}-aarch64.tar.gz", checksum_url = "https://download.jetbrains.com/language-server/kotlin-server/{{ version }}/kotlin-server-{{ version }}-aarch64.tar.gz.sha256", format = "tar.gz" }, macos-x64 = { url = "https://download.jetbrains.com/language-server/kotlin-server/{{ version }}/kotlin-server-{{ version }}.sit", checksum_url = "https://download.jetbrains.com/language-server/kotlin-server/{{ version }}/kotlin-server-{{ version }}.sit.sha256", format = "zip" }, macos-arm64 = { url = "https://download.jetbrains.com/language-server/kotlin-server/{{ version }}/kotlin-server-{{ version }}-aarch64.sit", checksum_url = "https://download.jetbrains.com/language-server/kotlin-server/{{ version }}/kotlin-server-{{ version }}-aarch64.sit.sha256", format = "zip" } } }
+
+# Eclipse jdtls, the server vscjava.vscode-java-pack bundles, for clients
+# outside VS Code (Gortex looks it up as `jdtls`). One platform-neutral archive
+# from Eclipse's own milestone site, with its published .sha256. The bin/jdtls
+# launcher is a Python script, satisfied by the python above.
+"http:jdtls" = { version = "{{ env.JDTLS_VERSION }}", url = 'https://download.eclipse.org/jdtls/milestones/{{ version }}/jdt-language-server-{{ version }}-{{ env.JDTLS_BUILD }}.tar.gz', checksum_url = 'https://download.eclipse.org/jdtls/milestones/{{ version }}/jdt-language-server-{{ version }}-{{ env.JDTLS_BUILD }}.tar.gz.sha256' }
 
 # ---- utilities -----------------------------------------------------------
 uv = "{{ env.UV_VERSION }}"         # python package/venv manager for scripts/

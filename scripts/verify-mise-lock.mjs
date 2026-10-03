@@ -54,7 +54,25 @@ const PLATFORMS = ['linux-x64', 'linux-arm64', 'macos-arm64', 'macos-x64'];
 //   fetches over TLS. That is a real guarantee, but it is NOT the one the rest
 //   of this lockfile provides, and the difference is why this is a named
 //   exception rather than a silently relaxed rule.
-const NO_PLATFORM_CHECKSUMS = new Set(['rust']);
+//
+//   npm:typescript-language-server, npm:pyright — mise's npm backend hands the
+//   install to npm and writes a version-only entry: there is no per-platform
+//   asset to hash, because the same tarball serves every platform. Integrity is
+//   npm's: it checks each tarball against the registry's sha512 `integrity`
+//   field. Weaker than a reviewed hash in this file (the registry supplies
+//   both), and the exact top-level pin is what bounds it — neither package has
+//   a required runtime dependency to float.
+//
+//   One known float: pyright declares an OPTIONAL `fsevents: ~2.3.3`, which
+//   mise installs on macOS hosts only (the package is `os: [darwin]`, so the
+//   Linux container never gets it). 2.3.3 is the newest release in that range
+//   and has been since 2023, so today it resolves to one version, but nothing
+//   here would notice if a 2.3.4 shipped. mise's aube installer ignores
+//   --omit=optional (tested), so it cannot be dropped from this side.
+//
+//   A future npm: tool with a real dependency tree should not be added here
+//   without revisiting all of the above.
+const NO_PLATFORM_CHECKSUMS = new Set(['rust', 'npm:typescript-language-server', 'npm:pyright']);
 
 const read = (p) => {
   try {
@@ -253,6 +271,27 @@ if (tag !== env.GITLEAKS_VERSION) {
       `  ${SECURITY_WF} runs ${tag ? `v${tag}` : 'no pinned zricethezav/gitleaks image'}\n\n` +
       `The hook and the CI job must be the same scanner. Bump both — and when\n` +
       `bumping the workflow, re-resolve its digest, since the tag is pinned by one.\n`,
+  );
+  process.exit(1);
+}
+
+// --- jdtls: a pin the version field does not carry -------------------------
+// The jdtls archive name has a build stamp (JDTLS_BUILD) that is not part of
+// its version, so the version check above passes even when only the stamp was
+// bumped — leaving mise.lock pointing at, and checksumming, the OLD archive.
+// mise's version templating cannot split the stamp back out (tested), so it
+// stays a separate key and is checked here by its effect: every locked jdtls
+// URL must name the stamp the manifest pins.
+const jdtlsUrls = [
+  ...lockSrc.matchAll(/^url = "(https:\/\/download\.eclipse\.org\/jdtls\/[^"]+)"$/gm),
+].map((m) => m[1]);
+const staleJdtls = jdtlsUrls.filter((u) => !u.includes(`-${env.JDTLS_BUILD}.tar.gz`));
+if (declared.has('http:jdtls') && (jdtlsUrls.length === 0 || staleJdtls.length > 0)) {
+  console.error(
+    `jdtls build stamp mismatch:\n` +
+      `  ${ENV_FILE} pins JDTLS_BUILD=${env.JDTLS_BUILD}\n` +
+      `  ${LOCK} has ${staleJdtls[0] ?? 'no jdtls URL'}\n\n` +
+      `Regenerate and commit both files:\n  mise lock -p ${PLATFORMS.join(',')}\n`,
   );
   process.exit(1);
 }
